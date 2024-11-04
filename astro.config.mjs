@@ -1,5 +1,5 @@
 // @ts-check
-import { defineConfig } from "astro/config";
+import { defineConfig, envField } from "astro/config";
 
 import react from "@astrojs/react";
 
@@ -17,4 +17,9 @@ export default defineConfig({
   ],
   output: "server",
   adapter: vercel(),
+  vite: {
+    define: {
+      "process.env.OPENAI_API_KEY": JSON.stringify(process.env.OPENAI_API_KEY),
+    },
+  },
 });

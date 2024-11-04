@@ -10,7 +10,6 @@
  */
 const LOCAL_RELAY_SERVER_URL: string =
   import.meta.env.REACT_APP_LOCAL_RELAY_SERVER_URL || "";
-
 import { useEffect, useRef, useCallback, useState } from "react";
 
 import { RealtimeClient } from "@openai/realtime-api-beta";
@@ -59,11 +58,29 @@ interface StudyInfo {
  * manages the state of the conversation, and renders the UI.
  */
 export function ConsolePage() {
+  const [apiKey, setApiKey] = useState<string>("");
   /**
    * Ask user for API Key.
    * If we're using the local relay server, we don't need this.
    */
-  const apiKey = import.meta.env.PUBLIC_OPENAI_API_KEY;
+
+  // Fetch API key on component mount
+  useEffect(() => {
+    async function fetchConfig() {
+      try {
+        const response = await fetch("/api/config");
+        const data = await response.json();
+        console.log("jkd fetchConfig", data);
+        setApiKey(data.apiKey);
+      } catch (error) {
+        console.error("Error fetching config:", error);
+      }
+    }
+    fetchConfig();
+  }, []);
+
+  console.log("jkd ConsolePage 000", import.meta.env);
+  // const apiKey = import.meta.env.PUBLIC_OPENAI_API_KEY;
   // const apiKey = LOCAL_RELAY_SERVER_URL
   //   ? ""
   //   : localStorage.getItem("tmp::voice_api_key") ||
@@ -85,16 +102,31 @@ export function ConsolePage() {
   const wavStreamPlayerRef = useRef<WavStreamPlayer>(
     new WavStreamPlayer({ sampleRate: 24000 }),
   );
-  const clientRef = useRef<RealtimeClient>(
-    new RealtimeClient(
-      LOCAL_RELAY_SERVER_URL
-        ? { url: LOCAL_RELAY_SERVER_URL }
-        : {
-            apiKey: apiKey,
-            dangerouslyAllowAPIKeyInBrowser: true,
-          },
-    ),
-  );
+  // const clientRef = useRef<RealtimeClient>(
+  //   new RealtimeClient(
+  //     LOCAL_RELAY_SERVER_URL
+  //       ? { url: LOCAL_RELAY_SERVER_URL }
+  //       : {
+  //           apiKey: apiKey,
+  //           dangerouslyAllowAPIKeyInBrowser: true,
+  //         },
+  //   ),
+  // );
+  // Initialize client ref with null and update it when apiKey is available
+  const clientRef = useRef<RealtimeClient | null>(null);
+
+  useEffect(() => {
+    if (apiKey) {
+      clientRef.current = new RealtimeClient(
+        LOCAL_RELAY_SERVER_URL
+          ? { url: LOCAL_RELAY_SERVER_URL }
+          : {
+              apiKey: apiKey,
+              dangerouslyAllowAPIKeyInBrowser: true,
+            },
+      );
+    }
+  }, [apiKey]);
   /**
    * References for:
    * - Rendering audio visualization (canvas)
@@ -163,6 +195,8 @@ export function ConsolePage() {
    * WavRecorder takes speech input, WavStreamPlayer output, client is API client
    */
   const connectConversation = useCallback(async () => {
+    if (!clientRef.current) return;
+
     const client = clientRef.current;
     const wavRecorder = wavRecorderRef.current;
     const wavStreamPlayer = wavStreamPlayerRef.current;
@@ -192,12 +226,14 @@ export function ConsolePage() {
     if (client.getTurnDetectionType() === "server_vad") {
       await wavRecorder.record((data) => client.appendInputAudio(data.mono));
     }
-  }, []);
+  }, [clientRef]);
 
   /**
    * Disconnect and reset conversation state
    */
   const disconnectConversation = useCallback(async () => {
+    if (!clientRef.current) return;
+
     setIsConnected(false);
     setRealtimeEvents([]);
     setItems([]);
@@ -213,23 +249,30 @@ export function ConsolePage() {
 
     const wavStreamPlayer = wavStreamPlayerRef.current;
     wavStreamPlayer.interrupt();
-  }, []);
+  }, [clientRef]);
 
   /**
    * Delete a conversation item by its ID.
    *
    * @param id - The ID of the item to delete.
    */
-  const deleteConversationItem = useCallback(async (id: string) => {
-    const client = clientRef.current;
-    client.deleteItem(id);
-  }, []);
+  const deleteConversationItem = useCallback(
+    async (id: string) => {
+      if (!clientRef.current) return;
+
+      const client = clientRef.current;
+      client.deleteItem(id);
+    },
+    [clientRef],
+  );
 
   /**
    * In push-to-talk mode, start recording
    * .appendInputAudio() for each sample
    */
   const startRecording = async () => {
+    if (!clientRef.current) return;
+
     setIsRecording(true);
     const client = clientRef.current;
     const wavRecorder = wavRecorderRef.current;
@@ -246,6 +289,8 @@ export function ConsolePage() {
    * In push-to-talk mode, stop recording
    */
   const stopRecording = async () => {
+    if (!clientRef.current) return;
+
     setIsRecording(false);
     const client = clientRef.current;
     const wavRecorder = wavRecorderRef.current;
@@ -257,6 +302,8 @@ export function ConsolePage() {
    * Switch between Manual <> VAD mode for communication
    */
   const changeTurnEndType = async (value: string) => {
+    if (!clientRef.current) return;
+
     const client = clientRef.current;
     const wavRecorder = wavRecorderRef.current;
     if (value === "none" && wavRecorder.getStatus() === "recording") {
@@ -371,6 +418,8 @@ export function ConsolePage() {
 
   // Add tools immediately after client instantiation
   const addTools = useCallback(() => {
+    if (!clientRef.current) return;
+
     const client = clientRef.current;
 
     client.addTool(
@@ -448,6 +497,8 @@ export function ConsolePage() {
    * Set all of our instructions, tools, events and more
    */
   useEffect(() => {
+    if (!clientRef.current) return;
+
     // Get refs
     const wavStreamPlayer = wavStreamPlayerRef.current;
     const client = clientRef.current;
