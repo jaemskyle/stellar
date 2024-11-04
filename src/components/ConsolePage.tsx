@@ -79,7 +79,6 @@ export function ConsolePage() {
     fetchConfig();
   }, []);
 
-  console.log("jkd ConsolePage 000", import.meta.env);
   // const apiKey = import.meta.env.PUBLIC_OPENAI_API_KEY;
   // const apiKey = LOCAL_RELAY_SERVER_URL
   //   ? ""
@@ -551,7 +550,7 @@ export function ConsolePage() {
       // cleanup; resets to defaults
       client.reset();
     };
-  }, []);
+  }, [clientRef]);
 
   /**
    * Render the application
