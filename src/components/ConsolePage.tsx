@@ -194,9 +194,20 @@ export function ConsolePage() {
    * WavRecorder takes speech input, WavStreamPlayer output, client is API client
    */
   const connectConversation = useCallback(async () => {
+    console.log("jkd connectConversation", "==clientRef", clientRef);
     if (!clientRef.current) return;
 
+    // if clientRef.current.tools object is empty trigger addTools
+    const toolsList = Object.keys(clientRef.current.tools);
     const client = clientRef.current;
+
+    if (toolsList.length === 0) {
+      addTools();
+
+      // Update session after adding tools
+      client.updateSession();
+    }
+
     const wavRecorder = wavRecorderRef.current;
     const wavStreamPlayer = wavStreamPlayerRef.current;
 
@@ -225,7 +236,7 @@ export function ConsolePage() {
     if (client.getTurnDetectionType() === "server_vad") {
       await wavRecorder.record((data) => client.appendInputAudio(data.mono));
     }
-  }, [clientRef]);
+  }, [apiKey, clientRef, wavRecorderRef, wavStreamPlayerRef]);
 
   /**
    * Disconnect and reset conversation state
@@ -248,7 +259,7 @@ export function ConsolePage() {
 
     const wavStreamPlayer = wavStreamPlayerRef.current;
     wavStreamPlayer.interrupt();
-  }, [clientRef]);
+  }, [apiKey, clientRef, wavRecorderRef, wavStreamPlayerRef]);
 
   /**
    * Delete a conversation item by its ID.
@@ -413,7 +424,7 @@ export function ConsolePage() {
     return () => {
       isLoaded = false;
     };
-  }, []);
+  }, [wavRecorderRef, wavStreamPlayerRef]);
 
   // Add tools immediately after client instantiation
   const addTools = useCallback(() => {
@@ -485,11 +496,11 @@ export function ConsolePage() {
 
     // Update session after adding tools
     client.updateSession();
-  }, []);
+  }, [apiKey, clientRef]);
 
   useEffect(() => {
     addTools();
-  }, [addTools]);
+  }, [apiKey, addTools]);
 
   /**
    * Core RealtimeClient and audio capture setup
@@ -550,7 +561,7 @@ export function ConsolePage() {
       // cleanup; resets to defaults
       client.reset();
     };
-  }, [clientRef]);
+  }, [apiKey, clientRef, wavStreamPlayerRef, wavRecorderRef]);
 
   /**
    * Render the application
