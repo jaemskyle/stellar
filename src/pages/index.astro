@@ -15,7 +15,7 @@ import { SignedIn, SignedOut, UserButton, SignInButton } from "@clerk/astro/comp
  -->
 <Layout title="Welcome to Astro.">
 	<main>
-	<nav class="text-black">
+	<!-- <nav class="text-black">
         <SignedOut>
           <SignInButton mode="modal" />
         </SignedOut>
@@ -24,7 +24,10 @@ import { SignedIn, SignedOut, UserButton, SignInButton } from "@clerk/astro/comp
 
           <ConsolePage client:load />
         </SignedIn>
-      </nav>
+      </nav> -->
+
+      <ConsolePage client:load />
+
 
 	   <!-- <VoiceChat client:load/> -->
 		<!-- <svg
