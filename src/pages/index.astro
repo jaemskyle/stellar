@@ -5,12 +5,27 @@ import Layout from '../layouts/Layout.astro';
 import Card from '../components/Card.astro';
 import VoiceChat from '../components/VoiceChat';
 import { ConsolePage } from '../components/ConsolePage';
+import SiteLayout from "../layouts/SiteLayout.astro"
+import { SignedIn, SignedOut, UserButton, SignInButton } from "@clerk/astro/components";
 ---
 
-
+<!-- <SiteLayout title="Clerk + Astro">
+  <p>Sign in to try Clerk out!</p>
+</SiteLayout>
+ -->
 <Layout title="Welcome to Astro.">
 	<main>
-	<ConsolePage client:load />
+	<nav class="text-black">
+        <SignedOut>
+          <SignInButton mode="modal" />
+        </SignedOut>
+        <SignedIn>
+          <UserButton />
+
+          <ConsolePage client:load />
+        </SignedIn>
+      </nav>
+
 	   <!-- <VoiceChat client:load/> -->
 		<!-- <svg
 			class="astro-a"
