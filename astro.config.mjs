@@ -7,12 +7,12 @@ import tailwind from "@astrojs/tailwind";
 
 import vercel from "@astrojs/vercel/serverless";
 
-// import clerk from "@clerk/astro";
+import clerk from "@clerk/astro";
 
 // https://astro.build/config
 export default defineConfig({
   integrations: [
-    // clerk(),
+    clerk(),
     react(),
     tailwind({
       applyBaseStyles: false,
