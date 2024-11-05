@@ -1,5 +1,5 @@
 ---
-import { SignedIn, SignedOut, UserButton, SignInButton } from "@clerk/astro/components";
+// import { SignedIn, SignedOut, UserButton, SignInButton } from "@clerk/astro/components";
 
 interface Props {
   title?: string;
@@ -19,12 +19,12 @@ const { title = "Welcome to Stellar" } = Astro.props;
     <header>
       <h1>{title}</h1>
       <nav>
-        <SignedOut>
+        <!-- <SignedOut>
           <SignInButton mode="modal" />
         </SignedOut>
         <SignedIn>
           <UserButton />
-        </SignedIn>
+        </SignedIn> -->
       </nav>
     </header>
     <article>
