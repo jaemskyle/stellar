@@ -13,7 +13,7 @@ import { SignedIn, SignedOut, UserButton, SignInButton } from "@clerk/astro/comp
   <p>Sign in to try Clerk out!</p>
 </SiteLayout>
  -->
-<Layout title="Welcome to Astro.">
+<Layout title="Welcome to Stellar!">
 	<main>
 	<nav class="text-black">
         <SignedOut>
@@ -24,6 +24,8 @@ import { SignedIn, SignedOut, UserButton, SignInButton } from "@clerk/astro/comp
 
           <ConsolePage client:load />
         </SignedIn>
+        <!-- link to /subscribe -->
+        <a href="/subscribe">Subscribe</a>
       </nav>
 
 	   <!-- <VoiceChat client:load/> -->

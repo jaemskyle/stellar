@@ -760,9 +760,9 @@ export function ConsolePage() {
               {JSON.stringify(memoryKv, null, 2)}
             </div>
           </div>
-          <div className="content-block trials">
+          <div className="content-block trials bg-zinc-50">
             <div className="content-block-title">clinical trials</div>
-            <div className="content-block-body">
+            <div className="content-block-body mt-12">
               <TrialsDisplay trials={trials} isLoading={isLoadingTrials} />
             </div>
           </div>
