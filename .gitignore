@@ -25,3 +25,9 @@ pnpm-debug.log*
 .aider*
 .vercel
 .history/**
+package_og.json
+tsconfig_og.json
+tsconfig.json
+.prettierrc
+.eslintrc.json
+eslint.config.mjs
