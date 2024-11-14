@@ -9,29 +9,29 @@
  * You can run it with `npm run relay`, in parallel with `npm start`.
  */
 const LOCAL_RELAY_SERVER_URL: string =
-  import.meta.env.REACT_APP_LOCAL_RELAY_SERVER_URL || "";
-import { useEffect, useRef, useCallback, useState } from "react";
+  import.meta.env.REACT_APP_LOCAL_RELAY_SERVER_URL || '';
+import { useEffect, useRef, useCallback, useState } from 'react';
 
-import { RealtimeClient } from "@openai/realtime-api-beta";
+import { RealtimeClient } from '@openai/realtime-api-beta';
 // import { any } from "@openai/realtime-api-beta/lib/client.js";
-import { WavRecorder, WavStreamPlayer } from "@/lib/wavtools/index.js";
-import { instructions } from "@/utils/conversation_config.js";
-import { WavRenderer } from "@/utils/wav_renderer";
-import { CTG_TOOL_DEFINITION, getClinicalTrials } from "@/lib/ctg-tool";
-import TrialsDisplay from "../components/TrialsDisplay";
+import { WavRecorder, WavStreamPlayer } from '@/lib/wavtools/index.js';
+import { instructions } from '@/utils/conversation_config.js';
+import { WavRenderer } from '@/utils/wav_renderer';
+import { CTG_TOOL_DEFINITION, getClinicalTrials } from '@/lib/ctg-tool';
+import TrialsDisplay from '../components/TrialsDisplay';
 
 // import { "x", Edit, Zap, ArrowUp, ArrowDown } from "react-feather";
-import { Button } from "@/components/button/Button";
-import { Toggle } from "@/components/toggle/Toggle";
+import { Button } from '@/components/button/Button';
+import { Toggle } from '@/components/toggle/Toggle';
 
-import "./ConsolePage.scss";
+import './ConsolePage.scss';
 
 /**
  * Type for all event logs.
  */
 interface RealtimeEvent {
   time: string;
-  source: "client" | "server";
+  source: 'client' | 'server';
   count?: number;
   event: { [key: string]: any };
 }
@@ -58,7 +58,7 @@ interface StudyInfo {
  * manages the state of the conversation, and renders the UI.
  */
 export function ConsolePage() {
-  const [apiKey, setApiKey] = useState<string>("");
+  const [apiKey, setApiKey] = useState<string>('');
   /**
    * Ask user for API Key.
    * If we're using the local relay server, we don't need this.
@@ -68,12 +68,12 @@ export function ConsolePage() {
   useEffect(() => {
     async function fetchConfig() {
       try {
-        const response = await fetch("/api/config");
+        const response = await fetch('/api/config');
         const data = await response.json();
-        console.log("jkd fetchConfig", data);
+        console.log('jkd fetchConfig', data);
         setApiKey(data.apiKey);
       } catch (error) {
-        console.error("Error fetching config:", error);
+        console.error('Error fetching config:', error);
       }
     }
     fetchConfig();
@@ -96,10 +96,10 @@ export function ConsolePage() {
    * - RealtimeClient (API client)
    */
   const wavRecorderRef = useRef<WavRecorder>(
-    new WavRecorder({ sampleRate: 24000 }),
+    new WavRecorder({ sampleRate: 24000 })
   );
   const wavStreamPlayerRef = useRef<WavStreamPlayer>(
-    new WavStreamPlayer({ sampleRate: 24000 }),
+    new WavStreamPlayer({ sampleRate: 24000 })
   );
   // const clientRef = useRef<RealtimeClient>(
   //   new RealtimeClient(
@@ -122,7 +122,7 @@ export function ConsolePage() {
           : {
               apiKey: apiKey,
               dangerouslyAllowAPIKeyInBrowser: true,
-            },
+            }
       );
     }
   }, [apiKey]);
@@ -168,9 +168,9 @@ export function ConsolePage() {
     const s = Math.floor(delta / 1000) % 60;
     const m = Math.floor(delta / 60_000) % 60;
     const pad = (n: number) => {
-      let s = n + "";
+      let s = n + '';
       while (s.length < 2) {
-        s = "0" + s;
+        s = '0' + s;
       }
       return s;
     };
@@ -181,10 +181,10 @@ export function ConsolePage() {
    * When you click the API key
    */
   const resetAPIKey = useCallback(() => {
-    const apiKey = prompt("OpenAI API Key");
+    const apiKey = prompt('OpenAI API Key');
     if (apiKey !== null) {
       localStorage.clear();
-      localStorage.setItem("tmp::voice_api_key", apiKey);
+      localStorage.setItem('tmp::voice_api_key', apiKey);
       window.location.reload();
     }
   }, []);
@@ -194,7 +194,7 @@ export function ConsolePage() {
    * WavRecorder takes speech input, WavStreamPlayer output, client is API client
    */
   const connectConversation = useCallback(async () => {
-    console.log("jkd connectConversation", "==clientRef", clientRef);
+    console.log('jkd connectConversation', '==clientRef', clientRef);
     if (!clientRef.current) return;
 
     // if clientRef.current.tools object is empty trigger addTools
@@ -233,7 +233,7 @@ export function ConsolePage() {
     // ]);
     client.createResponse();
 
-    if (client.getTurnDetectionType() === "server_vad") {
+    if (client.getTurnDetectionType() === 'server_vad') {
       await wavRecorder.record((data) => client.appendInputAudio(data.mono));
     }
   }, [apiKey, clientRef, wavRecorderRef, wavStreamPlayerRef]);
@@ -273,7 +273,7 @@ export function ConsolePage() {
       const client = clientRef.current;
       client.deleteItem(id);
     },
-    [clientRef],
+    [clientRef]
   );
 
   /**
@@ -316,16 +316,16 @@ export function ConsolePage() {
 
     const client = clientRef.current;
     const wavRecorder = wavRecorderRef.current;
-    if (value === "none" && wavRecorder.getStatus() === "recording") {
+    if (value === 'none' && wavRecorder.getStatus() === 'recording') {
       await wavRecorder.pause();
     }
     client.updateSession({
-      turn_detection: value === "none" ? null : { type: "server_vad" },
+      turn_detection: value === 'none' ? null : { type: 'server_vad' },
     });
-    if (value === "server_vad" && client.isConnected()) {
+    if (value === 'server_vad' && client.isConnected()) {
       await wavRecorder.record((data) => client.appendInputAudio(data.mono));
     }
-    setCanPushToTalk(value === "none");
+    setCanPushToTalk(value === 'none');
   };
 
   /**
@@ -348,7 +348,7 @@ export function ConsolePage() {
    */
   useEffect(() => {
     const conversationEls = [].slice.call(
-      document.body.querySelectorAll("[data-conversation-content]"),
+      document.body.querySelectorAll('[data-conversation-content]')
     );
     for (const el of conversationEls) {
       const conversationEl = el as HTMLDivElement;
@@ -377,20 +377,20 @@ export function ConsolePage() {
             clientCanvas.width = clientCanvas.offsetWidth;
             clientCanvas.height = clientCanvas.offsetHeight;
           }
-          clientCtx = clientCtx || clientCanvas.getContext("2d");
+          clientCtx = clientCtx || clientCanvas.getContext('2d');
           if (clientCtx) {
             clientCtx.clearRect(0, 0, clientCanvas.width, clientCanvas.height);
             const result = wavRecorder.recording
-              ? wavRecorder.getFrequencies("voice")
+              ? wavRecorder.getFrequencies('voice')
               : { values: new Float32Array([0]) };
             WavRenderer.drawBars(
               clientCanvas,
               clientCtx,
               result.values,
-              "#0099ff",
+              '#0099ff',
               10,
               0,
-              8,
+              8
             );
           }
         }
@@ -399,20 +399,20 @@ export function ConsolePage() {
             serverCanvas.width = serverCanvas.offsetWidth;
             serverCanvas.height = serverCanvas.offsetHeight;
           }
-          serverCtx = serverCtx || serverCanvas.getContext("2d");
+          serverCtx = serverCtx || serverCanvas.getContext('2d');
           if (serverCtx) {
             serverCtx.clearRect(0, 0, serverCanvas.width, serverCanvas.height);
             const result = wavStreamPlayer.analyser
-              ? wavStreamPlayer.getFrequencies("voice")
+              ? wavStreamPlayer.getFrequencies('voice')
               : { values: new Float32Array([0]) };
             WavRenderer.drawBars(
               serverCanvas,
               serverCtx,
               result.values,
-              "#009900",
+              '#009900',
               10,
               0,
-              8,
+              8
             );
           }
         }
@@ -434,22 +434,22 @@ export function ConsolePage() {
 
     client.addTool(
       {
-        name: "set_memory",
-        description: "Saves important data about the user into memory.",
+        name: 'set_memory',
+        description: 'Saves important data about the user into memory.',
         parameters: {
-          type: "object",
+          type: 'object',
           properties: {
             key: {
-              type: "string",
+              type: 'string',
               description:
-                "The key of the memory value. Always use lowercase and underscores, no other characters.",
+                'The key of the memory value. Always use lowercase and underscores, no other characters.',
             },
             value: {
-              type: "string",
-              description: "Value can be anything represented as a string",
+              type: 'string',
+              description: 'Value can be anything represented as a string',
             },
           },
-          required: ["key", "value"],
+          required: ['key', 'value'],
         },
       },
       async ({ key, value }: { [key: string]: any }) => {
@@ -459,7 +459,7 @@ export function ConsolePage() {
           return newKv;
         });
         return { ok: true };
-      },
+      }
     );
 
     client.addTool(CTG_TOOL_DEFINITION, async (params: any) => {
@@ -473,23 +473,23 @@ export function ConsolePage() {
         setIsLoadingTrials(false);
 
         return {
-          status: "success",
+          status: 'success',
           resultCount: trials.length,
           trials,
           message: `Successfully retrieved ${trials.length} clinical trials matching your criteria.`,
           summary:
             trials.length > 0
               ? `Found ${trials.length} trials. The first trial is "${trials[0].studyTitle}" (${trials[0].nctNumber}).`
-              : "No matching trials found with the current criteria.",
+              : 'No matching trials found with the current criteria.',
         };
       } catch (error) {
-        console.error("Error fetching trials:", error);
+        console.error('Error fetching trials:', error);
         setIsLoadingTrials(false);
         return {
-          status: "error",
-          error: "Failed to fetch clinical trials",
+          status: 'error',
+          error: 'Failed to fetch clinical trials',
           message:
-            "I apologize, but there was an error retrieving the clinical trials.",
+            'I apologize, but there was an error retrieving the clinical trials.',
         };
       }
     });
@@ -516,10 +516,10 @@ export function ConsolePage() {
     // Set instructions
     client.updateSession({ instructions: instructions });
     // Set transcription, otherwise we don't get user transcriptions back
-    client.updateSession({ input_audio_transcription: { model: "whisper-1" } });
+    client.updateSession({ input_audio_transcription: { model: 'whisper-1' } });
 
     // handle realtime events from client + server for event logging
-    client.on("realtime.event", (realtimeEvent: RealtimeEvent) => {
+    client.on('realtime.event', (realtimeEvent: RealtimeEvent) => {
       setRealtimeEvents((realtimeEvents) => {
         const lastEvent = realtimeEvents[realtimeEvents.length - 1];
         if (lastEvent?.event.type === realtimeEvent.event.type) {
@@ -531,24 +531,24 @@ export function ConsolePage() {
         }
       });
     });
-    client.on("error", (event: any) => console.error(event));
-    client.on("conversation.interrupted", async () => {
+    client.on('error', (event: any) => console.error(event));
+    client.on('conversation.interrupted', async () => {
       const trackSampleOffset = wavStreamPlayer.interrupt();
       if (trackSampleOffset?.trackId) {
         const { trackId, offset } = trackSampleOffset;
         client.cancelResponse(trackId, offset);
       }
     });
-    client.on("conversation.updated", async ({ item, delta }: any) => {
+    client.on('conversation.updated', async ({ item, delta }: any) => {
       const items = client.conversation.getItems();
       if (delta?.audio) {
         wavStreamPlayer.add16BitPCM(delta.audio, item.id);
       }
-      if (item.status === "completed" && item.formatted.audio?.length) {
+      if (item.status === 'completed' && item.formatted.audio?.length) {
         const wavFile = await WavRecorder.decode(
           item.formatted.audio,
           24000,
-          24000,
+          24000
         );
         item.formatted.file = wavFile;
       }
@@ -602,9 +602,9 @@ export function ConsolePage() {
               {realtimeEvents.map((realtimeEvent) => {
                 const count = realtimeEvent.count;
                 const event = { ...realtimeEvent.event };
-                if (event.type === "input_audio_buffer.append") {
+                if (event.type === 'input_audio_buffer.append') {
                   event.audio = `[trimmed: ${event.audio.length} bytes]`;
-                } else if (event.type === "response.audio.delta") {
+                } else if (event.type === 'response.audio.delta') {
                   event.delta = `[trimmed: ${event.delta.length} bytes]`;
                 }
                 return (
@@ -629,19 +629,19 @@ export function ConsolePage() {
                       >
                         <div
                           className={`event-source ${
-                            event.type === "error"
-                              ? "error"
+                            event.type === 'error'
+                              ? 'error'
                               : realtimeEvent.source
                           }`}
                         >
-                          {realtimeEvent.source === "client" ? (
+                          {realtimeEvent.source === 'client' ? (
                             <b>Up</b>
                           ) : (
                             <b>Down</b>
                           )}
                           <span>
-                            {event.type === "error"
-                              ? "error!"
+                            {event.type === 'error'
+                              ? 'error!'
                               : realtimeEvent.source}
                           </span>
                         </div>
@@ -667,11 +667,11 @@ export function ConsolePage() {
               {!items.length && `awaiting connection...`}
               {items.map((conversationItem) => (
                 <div className="conversation-item" key={conversationItem.id}>
-                  <div className={`speaker ${conversationItem.role || ""}`}>
+                  <div className={`speaker ${conversationItem.role || ''}`}>
                     <div>
                       {(
                         conversationItem.role || conversationItem.type
-                      ).replaceAll("_", " ")}
+                      ).replaceAll('_', ' ')}
                     </div>
                     <div
                       className="close"
@@ -684,7 +684,7 @@ export function ConsolePage() {
                   </div>
                   <div className={`speaker-content`}>
                     {/* tool response */}
-                    {conversationItem.type === "function_call_output" && (
+                    {conversationItem.type === 'function_call_output' && (
                       <div>{conversationItem.formatted.output}</div>
                     )}
                     {/* tool call */}
@@ -695,21 +695,21 @@ export function ConsolePage() {
                       </div>
                     )}
                     {!conversationItem.formatted.tool &&
-                      conversationItem.role === "user" && (
+                      conversationItem.role === 'user' && (
                         <div>
                           {conversationItem.formatted.transcript ||
                             (conversationItem.formatted.audio?.length
-                              ? "(awaiting transcript)"
+                              ? '(awaiting transcript)'
                               : conversationItem.formatted.text ||
-                                "(item sent)")}
+                                '(item sent)')}
                         </div>
                       )}
                     {!conversationItem.formatted.tool &&
-                      conversationItem.role === "assistant" && (
+                      conversationItem.role === 'assistant' && (
                         <div>
                           {conversationItem.formatted.transcript ||
                             conversationItem.formatted.text ||
-                            "(truncated)"}
+                            '(truncated)'}
                         </div>
                       )}
                     {conversationItem.formatted.file && (
@@ -726,15 +726,15 @@ export function ConsolePage() {
           <div className="content-actions">
             <Toggle
               defaultValue={false}
-              labels={["manual", "vad"]}
-              values={["none", "server_vad"]}
+              labels={['manual', 'vad']}
+              values={['none', 'server_vad']}
               onChange={(_, value) => changeTurnEndType(value)}
             />
             <div className="spacer" />
             {isConnected && canPushToTalk && (
               <Button
-                label={isRecording ? "release to send" : "push to talk"}
-                buttonStyle={isRecording ? "alert" : "regular"}
+                label={isRecording ? 'release to send' : 'push to talk'}
+                buttonStyle={isRecording ? 'alert' : 'regular'}
                 disabled={!isConnected || !canPushToTalk}
                 onMouseDown={startRecording}
                 onMouseUp={stopRecording}
@@ -742,10 +742,10 @@ export function ConsolePage() {
             )}
             <div className="spacer" />
             <Button
-              label={isConnected ? "disconnect" : "connect"}
+              label={isConnected ? 'disconnect' : 'connect'}
               // iconPosition={isConnected ? "end" : "start"}
               // icon={isConnected ? "x" : Zap}
-              buttonStyle={isConnected ? "regular" : "action"}
+              buttonStyle={isConnected ? 'regular' : 'action'}
               // onClick={(e) => console.log("jkd connect", e)}
               onClick={
                 isConnected ? disconnectConversation : connectConversation
