@@ -1,4 +1,4 @@
-/**
+/** src/components/ConsolePage.tsx
  * Running a local relay server will allow you to hide your API key
  * and run custom logic on the server.
  *
@@ -59,6 +59,8 @@ interface StudyInfo {
  */
 export function ConsolePage() {
   const [apiKey, setApiKey] = useState<string>('');
+  // Initialize client ref with null and update it when apiKey is available
+  const clientRef = useRef<RealtimeClient | null>(null);
   /**
    * Ask user for API Key.
    * If we're using the local relay server, we don't need this.
@@ -68,9 +70,13 @@ export function ConsolePage() {
   useEffect(() => {
     async function fetchConfig() {
       try {
+        console.log('Fetching configuration from /api/config');
         const response = await fetch('/api/config');
         const data = await response.json();
-        console.log('jkd fetchConfig', data);
+        if (!data.apiKey) {
+          throw new Error('No API key found in configuration');
+        }
+        console.log('Configuration data:', data);
         setApiKey(data.apiKey);
       } catch (error) {
         console.error('Error fetching config:', error);
@@ -111,11 +117,10 @@ export function ConsolePage() {
   //         },
   //   ),
   // );
-  // Initialize client ref with null and update it when apiKey is available
-  const clientRef = useRef<RealtimeClient | null>(null);
 
   useEffect(() => {
     if (apiKey) {
+      console.log('Initializing RealtimeClient with API key:', apiKey);
       clientRef.current = new RealtimeClient(
         LOCAL_RELAY_SERVER_URL
           ? { url: LOCAL_RELAY_SERVER_URL }
@@ -234,7 +239,7 @@ export function ConsolePage() {
     client.createResponse();
 
     if (client.getTurnDetectionType() === 'server_vad') {
-      await wavRecorder.record((data) => client.appendInputAudio(data.mono));
+      await wavRecorder.record(data => client.appendInputAudio(data.mono));
     }
   }, [apiKey, clientRef, wavRecorderRef, wavStreamPlayerRef]);
 
@@ -292,7 +297,7 @@ export function ConsolePage() {
       const { trackId, offset } = trackSampleOffset;
       client.cancelResponse(trackId, offset);
     }
-    await wavRecorder.record((data) => client.appendInputAudio(data.mono));
+    await wavRecorder.record(data => client.appendInputAudio(data.mono));
   };
 
   /**
@@ -323,7 +328,7 @@ export function ConsolePage() {
       turn_detection: value === 'none' ? null : { type: 'server_vad' },
     });
     if (value === 'server_vad' && client.isConnected()) {
-      await wavRecorder.record((data) => client.appendInputAudio(data.mono));
+      await wavRecorder.record(data => client.appendInputAudio(data.mono));
     }
     setCanPushToTalk(value === 'none');
   };
@@ -453,7 +458,7 @@ export function ConsolePage() {
         },
       },
       async ({ key, value }: { [key: string]: any }) => {
-        setMemoryKv((memoryKv) => {
+        setMemoryKv(memoryKv => {
           const newKv = { ...memoryKv };
           newKv[key] = value;
           return newKv;
@@ -520,7 +525,7 @@ export function ConsolePage() {
 
     // handle realtime events from client + server for event logging
     client.on('realtime.event', (realtimeEvent: RealtimeEvent) => {
-      setRealtimeEvents((realtimeEvents) => {
+      setRealtimeEvents(realtimeEvents => {
         const lastEvent = realtimeEvents[realtimeEvents.length - 1];
         if (lastEvent?.event.type === realtimeEvent.event.type) {
           // if we receive multiple events in a row, aggregate them for display purposes
@@ -599,7 +604,7 @@ export function ConsolePage() {
             <div className="content-block-title">events</div>
             <div className="content-block-body" ref={eventsScrollRef}>
               {!realtimeEvents.length && `awaiting connection...`}
-              {realtimeEvents.map((realtimeEvent) => {
+              {realtimeEvents.map(realtimeEvent => {
                 const count = realtimeEvent.count;
                 const event = { ...realtimeEvent.event };
                 if (event.type === 'input_audio_buffer.append') {
@@ -665,7 +670,7 @@ export function ConsolePage() {
             <div className="content-block-title">conversation</div>
             <div className="content-block-body" data-conversation-content>
               {!items.length && `awaiting connection...`}
-              {items.map((conversationItem) => (
+              {items.map(conversationItem => (
                 <div className="conversation-item" key={conversationItem.id}>
                   <div className={`speaker ${conversationItem.role || ''}`}>
                     <div>
