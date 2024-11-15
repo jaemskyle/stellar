@@ -1,0 +1,79 @@
+.
+├── Here is the updated code
+├── Here is the updated code listing for the file
+├── README.md
+├── astro.config.mjs
+├── components.json
+├── eslint.config.mjs
+├── package-lock.json
+├── package.json
+├── package_og.json
+├── project_dir_tree.txt
+├── public
+│   └── favicon.svg
+├── src
+│   ├── components
+│   │   ├── Card.astro
+│   │   ├── ConsolePage.scss
+│   │   ├── ConsolePage.tsx
+│   │   ├── Logo.tsx
+│   │   ├── Message.tsx
+│   │   ├── ProductDisplay.tsx
+│   │   ├── SuccessDisplay.tsx
+│   │   ├── TrialsDisplay.tsx
+│   │   ├── VoiceChat.tsx
+│   │   ├── button
+│   │   │   ├── Button.scss
+│   │   │   └── Button.tsx
+│   │   ├── toggle
+│   │   │   ├── Toggle.scss
+│   │   │   └── Toggle.tsx
+│   │   └── ui
+│   │       ├── alert.tsx
+│   │       ├── button.tsx
+│   │       └── toggle.tsx
+│   ├── env.d.ts
+│   ├── layouts
+│   │   ├── Layout.astro
+│   │   └── SiteLayout.astro
+│   ├── lib
+│   │   ├── ctg-tool-def-short.ts
+│   │   ├── ctg-tool-def.ts
+│   │   ├── ctg-tool.ts
+│   │   ├── utils.ts
+│   │   └── wavtools
+│   │       ├── index.js
+│   │       └── lib
+│   │           ├── analysis
+│   │           │   ├── audio_analysis.js
+│   │           │   └── constants.js
+│   │           ├── wav_packer.js
+│   │           ├── wav_recorder.js
+│   │           ├── wav_stream_player.js
+│   │           └── worklets
+│   │               ├── audio_processor.js
+│   │               └── stream_processor.js
+│   ├── middleware.ts
+│   ├── pages
+│   │   ├── api
+│   │   │   ├── chat.ts
+│   │   │   ├── clinical-trials.ts
+│   │   │   ├── config.ts
+│   │   │   ├── create-checkout-session.ts
+│   │   │   ├── create-portal-session.ts
+│   │   │   ├── text-to-speech.ts
+│   │   │   ├── transcribe.ts
+│   │   │   └── webhook.ts
+│   │   ├── index.astro
+│   │   └── subscribe.astro
+│   ├── styles
+│   │   └── globals.css
+│   └── utils
+│       ├── conversation_config.js
+│       ├── conversation_config_short.js
+│       └── wav_renderer.ts
+├── tailwind.config.mjs
+├── tsconfig.json
+└── tsconfig_og.json
+
+17 directories, 60 files
