@@ -61,11 +61,11 @@ export function ConsolePage() {
   const [apiKey, setApiKey] = useState<string>('');
   // Initialize client ref with null and update it when apiKey is available
   const clientRef = useRef<RealtimeClient | null>(null);
+
   /**
    * Ask user for API Key.
    * If we're using the local relay server, we don't need this.
    */
-
   // Fetch API key on component mount
   useEffect(() => {
     async function fetchConfig() {
@@ -194,6 +194,79 @@ export function ConsolePage() {
     }
   }, []);
 
+  // Add tools to the client before connecting to the conversation
+  const addTools = useCallback(() => {
+    if (!clientRef.current) return;
+
+    const client = clientRef.current;
+
+    client.addTool(
+      {
+        name: 'set_memory',
+        description: 'Saves important data about the user into memory.',
+        parameters: {
+          type: 'object',
+          properties: {
+            key: {
+              type: 'string',
+              description:
+                'The key of the memory value. Always use lowercase and underscores, no other characters.',
+            },
+            value: {
+              type: 'string',
+              description: 'Value can be anything represented as a string',
+            },
+          },
+          required: ['key', 'value'],
+        },
+      },
+      async ({ key, value }: { [key: string]: any }) => {
+        setMemoryKv(memoryKv => {
+          const newKv = { ...memoryKv };
+          newKv[key] = value;
+          return newKv;
+        });
+        return { ok: true };
+      }
+    );
+
+    client.addTool(CTG_TOOL_DEFINITION, async (params: any) => {
+      try {
+        setIsLoadingTrials(true);
+        setTrials([]);
+
+        const trials = await getClinicalTrials(params);
+
+        setTrials(trials);
+        setIsLoadingTrials(false);
+
+        return {
+          status: 'success',
+          resultCount: trials.length,
+          trials,
+          message: `Successfully retrieved ${trials.length} clinical trials matching your criteria.`,
+          summary:
+            trials.length > 0
+              ? `Found ${trials.length} trials. The first trial is "${trials[0].studyTitle}" (${trials[0].nctNumber}).`
+              : 'No matching trials found with the current criteria.',
+        };
+      } catch (error) {
+        console.error('Error fetching trials:', error);
+        setIsLoadingTrials(false);
+        return {
+          status: 'error',
+          error: 'Failed to fetch clinical trials',
+          message:
+            'I apologize, but there was an error retrieving the clinical trials.',
+        };
+      }
+    });
+
+    // Update session after adding tools
+    client.updateSession();
+  }, [clientRef]);
+  // }, [apiKey, clientRef]);
+
   /**
    * Connect to conversation:
    * WavRecorder takes speech input, WavStreamPlayer output, client is API client
@@ -241,7 +314,8 @@ export function ConsolePage() {
     if (client.getTurnDetectionType() === 'server_vad') {
       await wavRecorder.record(data => client.appendInputAudio(data.mono));
     }
-  }, [apiKey, clientRef, wavRecorderRef, wavStreamPlayerRef]);
+  }, [addTools, clientRef, wavRecorderRef, wavStreamPlayerRef]);
+  // }, [apiKey, clientRef, wavRecorderRef, wavStreamPlayerRef]);
 
   /**
    * Disconnect and reset conversation state
@@ -264,7 +338,8 @@ export function ConsolePage() {
 
     const wavStreamPlayer = wavStreamPlayerRef.current;
     wavStreamPlayer.interrupt();
-  }, [apiKey, clientRef, wavRecorderRef, wavStreamPlayerRef]);
+  }, [clientRef, wavRecorderRef, wavStreamPlayerRef]);
+  // }, [apiKey, clientRef, wavRecorderRef, wavStreamPlayerRef]);
 
   /**
    * Delete a conversation item by its ID.
@@ -430,78 +505,6 @@ export function ConsolePage() {
       isLoaded = false;
     };
   }, [wavRecorderRef, wavStreamPlayerRef]);
-
-  // Add tools immediately after client instantiation
-  const addTools = useCallback(() => {
-    if (!clientRef.current) return;
-
-    const client = clientRef.current;
-
-    client.addTool(
-      {
-        name: 'set_memory',
-        description: 'Saves important data about the user into memory.',
-        parameters: {
-          type: 'object',
-          properties: {
-            key: {
-              type: 'string',
-              description:
-                'The key of the memory value. Always use lowercase and underscores, no other characters.',
-            },
-            value: {
-              type: 'string',
-              description: 'Value can be anything represented as a string',
-            },
-          },
-          required: ['key', 'value'],
-        },
-      },
-      async ({ key, value }: { [key: string]: any }) => {
-        setMemoryKv(memoryKv => {
-          const newKv = { ...memoryKv };
-          newKv[key] = value;
-          return newKv;
-        });
-        return { ok: true };
-      }
-    );
-
-    client.addTool(CTG_TOOL_DEFINITION, async (params: any) => {
-      try {
-        setIsLoadingTrials(true);
-        setTrials([]);
-
-        const trials = await getClinicalTrials(params);
-
-        setTrials(trials);
-        setIsLoadingTrials(false);
-
-        return {
-          status: 'success',
-          resultCount: trials.length,
-          trials,
-          message: `Successfully retrieved ${trials.length} clinical trials matching your criteria.`,
-          summary:
-            trials.length > 0
-              ? `Found ${trials.length} trials. The first trial is "${trials[0].studyTitle}" (${trials[0].nctNumber}).`
-              : 'No matching trials found with the current criteria.',
-        };
-      } catch (error) {
-        console.error('Error fetching trials:', error);
-        setIsLoadingTrials(false);
-        return {
-          status: 'error',
-          error: 'Failed to fetch clinical trials',
-          message:
-            'I apologize, but there was an error retrieving the clinical trials.',
-        };
-      }
-    });
-
-    // Update session after adding tools
-    client.updateSession();
-  }, [apiKey, clientRef]);
 
   useEffect(() => {
     addTools();
