@@ -856,13 +856,13 @@ export function ConsolePage() {
           </div>
         </div>
         <div className="content-right">
-          <div className="content-block kv">
+          <div className="content-block kv z-[1]">
             <div className="content-block-title">user information</div>
             <div className="content-block-body content-kv">
               {JSON.stringify(memoryKv, null, 2)}
             </div>
           </div>
-          <div className="content-block trials bg-zinc-50">
+          <div className="content-block trials bg-zinc-50 z-[1]">
             <div className="content-block-title">clinical trials</div>
             <div className="content-block-body mt-12">
               <TrialsDisplay trials={trials} isLoading={isLoadingTrials} />
