@@ -80,7 +80,7 @@ const ReportModal: React.FC<ReportModalProps> = ({
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               transition={{ type: 'spring', duration: 0.5 }}
-              className="relative bg-white rounded-lg shadow-xl max-w-4xl w-full m-4 max-h-[90vh] overflow-y-auto z-[101]"
+              className="relative bg-white rounded-lg shadow-xl max-w-4xl w-full m-4 max-h-[90vh] overflow-y-auto"
               onClick={e => e.stopPropagation()}
             >
               {/* Header */}
