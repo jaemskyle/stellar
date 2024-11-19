@@ -1,41 +1,51 @@
-/** src/components/ConsolePage.tsx
- * Running a local relay server will allow you to hide your API key
- * and run custom logic on the server.
+/**
+ * ConsolePage Component
  *
- * Set the local relay server address to:
- * REACT_APP_LOCAL_RELAY_SERVER_URL=http://localhost:8081
+ * This component handles the connection to the OpenAI Realtime API,
+ * manages conversation state, and renders the clinical trials research UI.
  *
- * This will also require you to set OPENAI_API_KEY= in a `.env` file.
- * You can run it with `npm run relay`, in parallel with `npm start`.
+ * Local Relay Server Configuration:
+ * - Set REACT_APP_LOCAL_RELAY_SERVER_URL=http://localhost:8081
+ * - Requires OPENAI_API_KEY in .env file
+ * - Run with `npm run relay` parallel to `npm start`
  */
-const LOCAL_RELAY_SERVER_URL: string =
-  import.meta.env.REACT_APP_LOCAL_RELAY_SERVER_URL || '';
+
+// Core dependencies
 import { useEffect, useRef, useCallback, useState } from 'react';
 
+// External libraries
 import { RealtimeClient } from '@openai/realtime-api-beta';
-// import { any } from "@openai/realtime-api-beta/lib/client.js";
+import type { ItemType } from '@openai/realtime-api-beta/dist/lib/client.js';
+
+// Internal utilities
 import { WavRecorder, WavStreamPlayer } from '@/lib/wavtools/index.js';
-import { instructions } from '@/utils/conversation_config.js';
 import { WavRenderer } from '@/utils/wav_renderer';
+import { instructions } from '@/utils/conversation_config.js';
+
+// Features
 import {
   CTG_TOOL_DEFINITION,
   getClinicalTrials,
   type StudyInfo,
 } from '../lib/ctg-tool';
-// import type { StudyInfo } from '@/lib/ctg-tool';
-import TrialsDisplay from '../components/TrialsDisplay';
 import {
   reportHandler,
   REPORT_TOOL_DEFINITION,
   type TrialsReport,
 } from '../lib/report-handler';
-import ReportModal from '@/components/ReportModal';
 
-// import { "x", Edit, Zap, ArrowUp, ArrowDown } from "react-feather";
+// Components
+import TrialsDisplay from '../components/TrialsDisplay';
+import ReportModal from '@/components/ReportModal';
 import { Button } from '@/components/button/Button';
 import { Toggle } from '@/components/toggle/Toggle';
 
+// Styles
 import './ConsolePage.scss';
+
+// Constants
+const LOCAL_RELAY_SERVER_URL: string =
+  import.meta.env.REACT_APP_LOCAL_RELAY_SERVER_URL || '';
 
 /**
  * Type for all event logs.
@@ -47,67 +57,22 @@ interface RealtimeEvent {
   event: { [key: string]: any };
 }
 
-// /**
-//  * Type for clinical trial study information.
-//  */
-// interface StudyInfo {
-//   studyTitle: string;
-//   nctNumber: string;
-//   status: string;
-//   startDate: string;
-//   completionDate: string;
-//   conditions: string;
-//   interventions: string;
-//   sponsor: string;
-//   studyType: string;
-//   briefSummary: string;
-// }
-
 /**
  * The main component for the console page.
  * This component handles the connection to the OpenAI Realtime API,
  * manages the state of the conversation, and renders the UI.
  */
 export function ConsolePage() {
-  const [apiKey, setApiKey] = useState<string>('');
-  const [finalReport, setFinalReport] = useState<TrialsReport | null>(null); // Add state for report
-  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  /**
+   * State Management Section
+   * Organized by functionality for better code organization
+   */
 
+  // API and Client State
+  const [apiKey, setApiKey] = useState<string>('');
   // Initialize client ref with null and update it when apiKey is available
   const clientRef = useRef<RealtimeClient | null>(null);
-
-  /**
-   * Ask user for API Key.
-   * If we're using the local relay server, we don't need this.
-   */
-  // Fetch API key on component mount
-  useEffect(() => {
-    async function fetchConfig() {
-      try {
-        console.log('Fetching configuration from /api/config');
-        const response = await fetch('/api/config');
-        const data = await response.json();
-        if (!data.apiKey) {
-          throw new Error('No API key found in configuration');
-        }
-        console.log('Configuration data:', data);
-        setApiKey(data.apiKey);
-      } catch (error) {
-        console.error('Error fetching config:', error);
-      }
-    }
-    fetchConfig();
-  }, []);
-
-  // const apiKey = import.meta.env.PUBLIC_OPENAI_API_KEY;
-  // const apiKey = LOCAL_RELAY_SERVER_URL
-  //   ? ""
-  //   : localStorage.getItem("tmp::voice_api_key") ||
-  //     prompt("OpenAI API Key") ||
-  //     "";
-  // if (apiKey !== "") {
-  //   localStorage.setItem("tmp::voice_api_key", apiKey);
-  // }
+  const [isConnected, setIsConnected] = useState(false);
 
   /**
    * Instantiate:
@@ -121,30 +86,28 @@ export function ConsolePage() {
   const wavStreamPlayerRef = useRef<WavStreamPlayer>(
     new WavStreamPlayer({ sampleRate: 24000 })
   );
-  // const clientRef = useRef<RealtimeClient>(
-  //   new RealtimeClient(
-  //     LOCAL_RELAY_SERVER_URL
-  //       ? { url: LOCAL_RELAY_SERVER_URL }
-  //       : {
-  //           apiKey: apiKey,
-  //           dangerouslyAllowAPIKeyInBrowser: true,
-  //         },
-  //   ),
-  // );
+  const [canPushToTalk, setCanPushToTalk] = useState(true);
+  const [isRecording, setIsRecording] = useState(false);
 
-  useEffect(() => {
-    if (apiKey) {
-      console.log('Initializing RealtimeClient with API key:', apiKey);
-      clientRef.current = new RealtimeClient(
-        LOCAL_RELAY_SERVER_URL
-          ? { url: LOCAL_RELAY_SERVER_URL }
-          : {
-              apiKey: apiKey,
-              dangerouslyAllowAPIKeyInBrowser: true,
-            }
-      );
-    }
-  }, [apiKey]);
+  /**
+   * All of our variables for displaying application state:
+   * - items are all conversation items (dialog)
+   * - realtimeEvents are event logs, which can be expanded
+   * - memoryKv is for set_memory() function
+   * - trials and isLoadingTrials are for get_trials() function
+   */
+  // Conversation State
+  const [items, setItems] = useState<ItemType[]>([]);
+  const [memoryKv, setMemoryKv] = useState<{ [key: string]: any }>({});
+
+  // Event Logging State
+  const [realtimeEvents, setRealtimeEvents] = useState<RealtimeEvent[]>([]);
+  const [expandedEvents, setExpandedEvents] = useState<{
+    [key: string]: boolean;
+  }>({});
+  const startTimeRef = useRef<string>(new Date().toISOString());
+
+  // UI References
   /**
    * References for:
    * - Rendering audio visualization (canvas)
@@ -155,29 +118,18 @@ export function ConsolePage() {
   const serverCanvasRef = useRef<HTMLCanvasElement>(null);
   const eventsScrollHeightRef = useRef(0);
   const eventsScrollRef = useRef<HTMLDivElement>(null);
-  const startTimeRef = useRef<string>(new Date().toISOString());
 
-  /**
-   * All of our variables for displaying application state:
-   * - items are all conversation items (dialog)
-   * - realtimeEvents are event logs, which can be expanded
-   * - memoryKv is for set_memory() function
-   * - trials and isLoadingTrials are for get_trials() function
-   */
-  const [items, setItems] = useState<any[]>([]);
-  const [realtimeEvents, setRealtimeEvents] = useState<RealtimeEvent[]>([]);
-  const [expandedEvents, setExpandedEvents] = useState<{
-    [key: string]: boolean;
-  }>({});
-  const [isConnected, setIsConnected] = useState(false);
-  const [canPushToTalk, setCanPushToTalk] = useState(true);
-  const [isRecording, setIsRecording] = useState(false);
-  const [memoryKv, setMemoryKv] = useState<{ [key: string]: any }>({});
+  // Trials and Report State
   const [trials, setTrials] = useState<StudyInfo[]>([]);
   const [isLoadingTrials, setIsLoadingTrials] = useState(false);
+  const [finalReport, setFinalReport] = useState<TrialsReport | null>(null);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+
   /**
-   * Utility for formatting the timing of logs
+   * Utility Functions
+   * Helper functions for formatting and general purpose use
    */
+  // Utility for formatting the timing of logs
   const formatTime = useCallback((timestamp: string) => {
     const startTime = startTimeRef.current;
     const t0 = new Date(startTime).valueOf();
@@ -198,6 +150,7 @@ export function ConsolePage() {
 
   /**
    * When you click the API key
+   * Allows manual reset of the API key
    */
   const resetAPIKey = useCallback(() => {
     const apiKey = prompt('OpenAI API Key');
@@ -208,7 +161,10 @@ export function ConsolePage() {
     }
   }, []);
 
-  // Add tools to the client before connecting to the conversation
+  /**
+   * Tool Management
+   * Handles setup and configuration of available tools
+   */
   const addTools = useCallback(() => {
     if (!clientRef.current) return;
 
@@ -309,15 +265,21 @@ export function ConsolePage() {
 
     // Update session after adding tools
     client.updateSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientRef]);
-  // }, [apiKey, clientRef]);
 
   /**
+   * Connection Management
    * Connect to conversation:
+   * Handles establishing and terminating connections
    * WavRecorder takes speech input, WavStreamPlayer output, client is API client
    */
   const connectConversation = useCallback(async () => {
     console.log('jkd connectConversation', '==clientRef', clientRef);
+    console.log(
+      'jb === !clientRef.current gets resolved to',
+      !clientRef.current
+    );
     if (!clientRef.current) return;
 
     // if clientRef.current.tools object is empty trigger addTools
@@ -347,23 +309,30 @@ export function ConsolePage() {
     await wavStreamPlayer.connect();
 
     // Connect to realtime API
+    console.log('jb connectConversation', '==client.connect()');
     await client.connect();
+    console.log('jb connectConversation', '==client.connect() done');
     // client.sendUserMessageContent([
     //   {
     //     type: `input_text`,
     //     text: `Hello! I'm looking for clinical trials that might be suitable for me.`,
     //   },
     // ]);
+    console.log('Forcing model response generation');
     client.createResponse();
+    console.log('Model response creation complete');
 
     if (client.getTurnDetectionType() === 'server_vad') {
       await wavRecorder.record(data => client.appendInputAudio(data.mono));
     }
-  }, [clientRef, wavRecorderRef, wavStreamPlayerRef]);
-  // }, [apiKey, clientRef, wavRecorderRef, wavStreamPlayerRef]);
+
+    console.log('Connected to conversation');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientRef]);
 
   /**
    * Disconnect and reset conversation state
+   * Cleans up all connections and resets state
    */
   const disconnectConversation = useCallback(async () => {
     if (!clientRef.current) return;
@@ -385,11 +354,13 @@ export function ConsolePage() {
 
     const wavStreamPlayer = wavStreamPlayerRef.current;
     wavStreamPlayer.interrupt();
-  }, [clientRef, wavRecorderRef, wavStreamPlayerRef]);
+  }, [clientRef]);
+  // }, [clientRef, wavRecorderRef, wavStreamPlayerRef]);
   // }, [apiKey, clientRef, wavRecorderRef, wavStreamPlayerRef]);
 
   /**
-   * Full cleanup including report data - use this for complete reset
+   * Full cleanup including report data
+   * Use this for complete reset of the application state
    */
   const fullCleanup = useCallback(async () => {
     await disconnectConversation();
@@ -398,6 +369,60 @@ export function ConsolePage() {
   }, [disconnectConversation]);
 
   /**
+   * Audio Management
+   * Handles all audio recording and playback functionality
+   */
+  const startRecording = async () => {
+    if (!clientRef.current) return;
+
+    setIsRecording(true);
+    const client = clientRef.current;
+    const wavRecorder = wavRecorderRef.current;
+    const wavStreamPlayer = wavStreamPlayerRef.current;
+    const trackSampleOffset = wavStreamPlayer.interrupt();
+    if (trackSampleOffset?.trackId) {
+      const { trackId, offset } = trackSampleOffset;
+      client.cancelResponse(trackId, offset);
+    }
+    await wavRecorder.record(data => client.appendInputAudio(data.mono));
+  };
+
+  /**
+   * In push-to-talk mode, stop recording
+   */
+  const stopRecording = async () => {
+    if (!clientRef.current) return;
+
+    setIsRecording(false);
+    const client = clientRef.current;
+    const wavRecorder = wavRecorderRef.current;
+    await wavRecorder.pause();
+    client.createResponse();
+  };
+
+  /**
+   * Switch between Manual <> VAD mode for communication
+   * Handles turn detection type changes
+   */
+  const changeTurnEndType = async (value: string) => {
+    if (!clientRef.current) return;
+
+    const client = clientRef.current;
+    const wavRecorder = wavRecorderRef.current;
+    if (value === 'none' && wavRecorder.getStatus() === 'recording') {
+      await wavRecorder.pause();
+    }
+    client.updateSession({
+      turn_detection: value === 'none' ? null : { type: 'server_vad' },
+    });
+    if (value === 'server_vad' && client.isConnected()) {
+      await wavRecorder.record(data => client.appendInputAudio(data.mono));
+    }
+    setCanPushToTalk(value === 'none');
+  };
+
+  /**
+   * Report Management
    * Handles manual report generation and conversation end
    */
   const handleManualReportGeneration = useCallback(async () => {
@@ -444,224 +469,236 @@ export function ConsolePage() {
   );
 
   /**
-   * In push-to-talk mode, start recording
-   * .appendInputAudio() for each sample
+   * Effect Hooks
+   * Organized by initialization order and dependencies
    */
-  const startRecording = async () => {
-    if (!clientRef.current) return;
-
-    setIsRecording(true);
-    const client = clientRef.current;
-    const wavRecorder = wavRecorderRef.current;
-    const wavStreamPlayer = wavStreamPlayerRef.current;
-    const trackSampleOffset = wavStreamPlayer.interrupt();
-    if (trackSampleOffset?.trackId) {
-      const { trackId, offset } = trackSampleOffset;
-      client.cancelResponse(trackId, offset);
-    }
-    await wavRecorder.record(data => client.appendInputAudio(data.mono));
-  };
 
   /**
-   * In push-to-talk mode, stop recording
+   * API and Client Initialization
+   * Ask user for API Key.
+   * If we're using the local relay server, we don't need this.
    */
-  const stopRecording = async () => {
-    if (!clientRef.current) return;
-
-    setIsRecording(false);
-    const client = clientRef.current;
-    const wavRecorder = wavRecorderRef.current;
-    await wavRecorder.pause();
-    client.createResponse();
-  };
-
-  /**
-   * Switch between Manual <> VAD mode for communication
-   */
-  const changeTurnEndType = async (value: string) => {
-    if (!clientRef.current) return;
-
-    const client = clientRef.current;
-    const wavRecorder = wavRecorderRef.current;
-    if (value === 'none' && wavRecorder.getStatus() === 'recording') {
-      await wavRecorder.pause();
-    }
-    client.updateSession({
-      turn_detection: value === 'none' ? null : { type: 'server_vad' },
-    });
-    if (value === 'server_vad' && client.isConnected()) {
-      await wavRecorder.record(data => client.appendInputAudio(data.mono));
-    }
-    setCanPushToTalk(value === 'none');
-  };
-
-  /**
-   * Auto-scroll the event logs
-   */
+  // Fetch API key on component mount
   useEffect(() => {
-    if (eventsScrollRef.current) {
-      const eventsEl = eventsScrollRef.current;
-      const scrollHeight = eventsEl.scrollHeight;
-      // Only scroll if height has just changed
-      if (scrollHeight !== eventsScrollHeightRef.current) {
-        eventsEl.scrollTop = scrollHeight;
-        eventsScrollHeightRef.current = scrollHeight;
+    async function fetchConfig() {
+      try {
+        console.log('Fetching configuration from /api/config');
+        const response = await fetch('/api/config');
+        const data = await response.json();
+        if (!data.apiKey) {
+          throw new Error('No API key found in configuration');
+        }
+        console.log('Configuration data:', data);
+        setApiKey(data.apiKey);
+      } catch (error) {
+        console.error('Error fetching config:', error);
       }
     }
-  }, [realtimeEvents]);
+    fetchConfig();
+  }, []);
 
-  /**
-   * Auto-scroll the conversation logs
-   */
   useEffect(() => {
-    const conversationEls = [].slice.call(
-      document.body.querySelectorAll('[data-conversation-content]')
-    );
-    for (const el of conversationEls) {
-      const conversationEl = el as HTMLDivElement;
-      conversationEl.scrollTop = conversationEl.scrollHeight;
+    if (apiKey) {
+      console.log('Initializing RealtimeClient with API key:', apiKey);
+      clientRef.current = new RealtimeClient(
+        LOCAL_RELAY_SERVER_URL
+          ? { url: LOCAL_RELAY_SERVER_URL }
+          : {
+              apiKey: apiKey,
+              dangerouslyAllowAPIKeyInBrowser: true,
+            }
+      );
     }
-  }, [items]);
+  }, [apiKey]);
 
   /**
-   * Set up render loops for the visualization canvas
+   * Tool and Core Setup
    */
-  useEffect(() => {
-    let isLoaded = true;
-
-    const wavRecorder = wavRecorderRef.current;
-    const clientCanvas = clientCanvasRef.current;
-    let clientCtx: CanvasRenderingContext2D | null = null;
-
-    const wavStreamPlayer = wavStreamPlayerRef.current;
-    const serverCanvas = serverCanvasRef.current;
-    let serverCtx: CanvasRenderingContext2D | null = null;
-
-    const render = () => {
-      if (isLoaded) {
-        if (clientCanvas) {
-          if (!clientCanvas.width || !clientCanvas.height) {
-            clientCanvas.width = clientCanvas.offsetWidth;
-            clientCanvas.height = clientCanvas.offsetHeight;
-          }
-          clientCtx = clientCtx || clientCanvas.getContext('2d');
-          if (clientCtx) {
-            clientCtx.clearRect(0, 0, clientCanvas.width, clientCanvas.height);
-            const result = wavRecorder.recording
-              ? wavRecorder.getFrequencies('voice')
-              : { values: new Float32Array([0]) };
-            WavRenderer.drawBars(
-              clientCanvas,
-              clientCtx,
-              result.values,
-              '#0099ff',
-              10,
-              0,
-              8
-            );
-          }
-        }
-        if (serverCanvas) {
-          if (!serverCanvas.width || !serverCanvas.height) {
-            serverCanvas.width = serverCanvas.offsetWidth;
-            serverCanvas.height = serverCanvas.offsetHeight;
-          }
-          serverCtx = serverCtx || serverCanvas.getContext('2d');
-          if (serverCtx) {
-            serverCtx.clearRect(0, 0, serverCanvas.width, serverCanvas.height);
-            const result = wavStreamPlayer.analyser
-              ? wavStreamPlayer.getFrequencies('voice')
-              : { values: new Float32Array([0]) };
-            WavRenderer.drawBars(
-              serverCanvas,
-              serverCtx,
-              result.values,
-              '#009900',
-              10,
-              0,
-              8
-            );
-          }
-        }
-        window.requestAnimationFrame(render);
-      }
-    };
-    render();
-
-    return () => {
-      isLoaded = false;
-    };
-  }, [wavRecorderRef, wavStreamPlayerRef]);
-
   useEffect(() => {
     addTools();
-  }, [apiKey, addTools]);
+  }, [addTools]); // ? jb
+  // }, [apiKey, addTools]); // ? jkd
 
   /**
    * Core RealtimeClient and audio capture setup
    * Set all of our instructions, tools, events and more
    */
   useEffect(() => {
+    console.log('Starting RealtimeClient setup and connection to conversation');
     if (!clientRef.current) return;
 
     // Get refs
-    const wavStreamPlayer = wavStreamPlayerRef.current;
     const client = clientRef.current;
+    const wavStreamPlayer = wavStreamPlayerRef.current;
 
+    // Initialize session settings
     // Set instructions
+    console.log('Setting instructions and transcription model:', instructions, {
+      model: 'whisper-1',
+    });
+
     client.updateSession({ instructions: instructions });
     // Set transcription, otherwise we don't get user transcriptions back
     client.updateSession({ input_audio_transcription: { model: 'whisper-1' } });
 
+    // Event handlers setup
     // handle realtime events from client + server for event logging
-    client.on('realtime.event', (realtimeEvent: RealtimeEvent) => {
-      setRealtimeEvents(realtimeEvents => {
-        const lastEvent = realtimeEvents[realtimeEvents.length - 1];
-        if (lastEvent?.event.type === realtimeEvent.event.type) {
-          // if we receive multiple events in a row, aggregate them for display purposes
-          lastEvent.count = (lastEvent.count || 0) + 1;
-          return realtimeEvents.slice(0, -1).concat(lastEvent);
-        } else {
-          return realtimeEvents.concat(realtimeEvent);
+    console.log('Setting up event listeners');
+    const eventHandlers = {
+      'realtime.event': (realtimeEvent: RealtimeEvent) => {
+        setRealtimeEvents(events => {
+          const lastEvent = events[events.length - 1];
+          if (lastEvent?.event.type === realtimeEvent.event.type) {
+            lastEvent.count = (lastEvent.count || 0) + 1;
+            return events.slice(0, -1).concat(lastEvent);
+          } else {
+            return events.concat(realtimeEvent);
+          }
+        });
+      },
+      error: (event: any) => console.error(event),
+      'conversation.interrupted': async () => {
+        const trackSampleOffset = wavStreamPlayer.interrupt();
+        if (trackSampleOffset?.trackId) {
+          client.cancelResponse(
+            trackSampleOffset.trackId,
+            trackSampleOffset.offset
+          );
         }
-      });
-    });
-    client.on('error', (event: any) => console.error(event));
-    client.on('conversation.interrupted', async () => {
-      const trackSampleOffset = wavStreamPlayer.interrupt();
-      if (trackSampleOffset?.trackId) {
-        const { trackId, offset } = trackSampleOffset;
-        client.cancelResponse(trackId, offset);
-      }
-    });
-    client.on('conversation.updated', async ({ item, delta }: any) => {
-      const items = client.conversation.getItems();
-      if (delta?.audio) {
-        wavStreamPlayer.add16BitPCM(delta.audio, item.id);
-      }
-      if (item.status === 'completed' && item.formatted.audio?.length) {
-        const wavFile = await WavRecorder.decode(
-          item.formatted.audio,
-          24000,
-          24000
-        );
-        item.formatted.file = wavFile;
-      }
-      setItems(items);
+      },
+      'conversation.updated': async ({ item, delta }: any) => {
+        if (delta?.audio) {
+          wavStreamPlayer.add16BitPCM(delta.audio, item.id);
+        }
+        if (item.status === 'completed' && item.formatted.audio?.length) {
+          const wavFile = await WavRecorder.decode(
+            item.formatted.audio,
+            24000,
+            24000
+          );
+          item.formatted.file = wavFile;
+        }
+        setItems(client.conversation.getItems());
+      },
+    };
+
+    // Attach event handlers
+    Object.entries(eventHandlers).forEach(([event, handler]) => {
+      client.on(event, handler);
     });
 
     setItems(client.conversation.getItems());
 
     return () => {
-      // cleanup; resets to defaults
-      client.reset();
+      client.reset(); // cleanup; resets to defaults
     };
-  }, [apiKey, clientRef, wavStreamPlayerRef, wavRecorderRef]);
+  }, [apiKey, clientRef]);
 
   /**
-   * Render the application
+   * UI Effects
+   * Auto-scroll the event logs
    */
-  const renderContent = (
+  useEffect(() => {
+    if (!eventsScrollRef.current) return;
+    const eventsEl = eventsScrollRef.current;
+    const scrollHeight = eventsEl.scrollHeight;
+    if (scrollHeight !== eventsScrollHeightRef.current) {
+      eventsEl.scrollTop = scrollHeight;
+      eventsScrollHeightRef.current = scrollHeight;
+    }
+  }, [realtimeEvents]);
+
+  /**
+   * Auto-scroll the conversation logs
+   */
+  // useEffect(() => {
+  //   const conversationEls = [].slice.call(
+  //     document.body.querySelectorAll('[data-conversation-content]')
+  //   );
+  //   for (const el of conversationEls) {
+  //     const conversationEl = el as HTMLDivElement;
+  //     conversationEl.scrollTop = conversationEl.scrollHeight;
+  //   }
+  // }, [items]);
+  useEffect(() => {
+    document.querySelectorAll('[data-conversation-content]').forEach(el => {
+      (el as HTMLDivElement).scrollTop = el.scrollHeight;
+    });
+  }, [items]);
+
+  /**
+   * Visualization Effect
+   * Set up render loops for the visualization canvas
+   *
+   * This is where the audio visualization is rendered.
+   */
+  useEffect(() => {
+    let isLoaded = true;
+    const renderContext = {
+      wavRecorder: wavRecorderRef.current,
+      wavStreamPlayer: wavStreamPlayerRef.current,
+      clientCanvas: clientCanvasRef.current,
+      serverCanvas: serverCanvasRef.current,
+      clientCtx: null as CanvasRenderingContext2D | null,
+      serverCtx: null as CanvasRenderingContext2D | null,
+    };
+
+    function renderCanvas(
+      canvas: HTMLCanvasElement | null,
+      ctx: CanvasRenderingContext2D | null,
+      source: any,
+      color: string
+    ) {
+      if (!canvas) return null;
+
+      if (!canvas.width || !canvas.height) {
+        canvas.width = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
+      }
+
+      ctx = ctx || canvas.getContext('2d');
+      if (!ctx) return null;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const values =
+        source.getFrequencies?.('voice')?.values || new Float32Array([0]);
+
+      WavRenderer.drawBars(canvas, ctx, values, color, 10, 0, 8);
+      return ctx;
+    }
+
+    function render() {
+      if (!isLoaded) return;
+
+      renderContext.clientCtx = renderCanvas(
+        renderContext.clientCanvas,
+        renderContext.clientCtx,
+        renderContext.wavRecorder.recording ? renderContext.wavRecorder : {},
+        '#0099ff'
+      );
+
+      renderContext.serverCtx = renderCanvas(
+        renderContext.serverCanvas,
+        renderContext.serverCtx,
+        renderContext.wavStreamPlayer.analyser
+          ? renderContext.wavStreamPlayer
+          : {},
+        '#009900'
+      );
+
+      window.requestAnimationFrame(render);
+    }
+
+    render();
+    return () => {
+      isLoaded = false;
+    };
+  }, []);
+
+  /**
+   * Render the application UI
+   */
+  return (
     <div data-component="ConsolePage">
       <div className="content-top">
         <div className="content-title">
@@ -774,7 +811,7 @@ export function ConsolePage() {
                         deleteConversationItem(conversationItem.id)
                       }
                     >
-                      <b>Yo</b>
+                      <b>Delete</b>
                     </div>
                   </div>
                   <div className={`speaker-content`}>
@@ -838,7 +875,7 @@ export function ConsolePage() {
             <div className="spacer" />
             <Button
               label={isConnected ? 'disconnect & reset' : 'connect'}
-              // iconPosition={isConnected ? "end" : "start"}
+              iconPosition={isConnected ? 'end' : 'start'}
               // icon={isConnected ? "x" : Zap}
               buttonStyle={isConnected ? 'regular' : 'action'}
               // onClick={(e) => console.log("jkd connect", e)}
@@ -888,5 +925,4 @@ export function ConsolePage() {
       />
     </div>
   );
-  return renderContent;
 }
