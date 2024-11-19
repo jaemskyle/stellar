@@ -31,3 +31,6 @@ tsconfig.json
 .prettierrc
 .eslintrc.json
 eslint.config.mjs
+
+
+misc/
