@@ -1,6 +1,7 @@
 .
 ├── Here is the updated code
 ├── Here is the updated code listing for the file
+├── OPEN_SOURCE_ROADMAP.md
 ├── README.md
 ├── astro.config.mjs
 ├── components.json
@@ -8,6 +9,8 @@
 ├── package-lock.json
 ├── package.json
 ├── package_og.json
+├── patches
+│   └── @openai+realtime-api-beta+0.0.0.patch
 ├── project_dir_tree.txt
 ├── public
 │   └── favicon.svg
@@ -16,9 +19,11 @@
 │   │   ├── Card.astro
 │   │   ├── ConsolePage.scss
 │   │   ├── ConsolePage.tsx
+│   │   ├── ConsolePage_backup.tsx
 │   │   ├── Logo.tsx
 │   │   ├── Message.tsx
 │   │   ├── ProductDisplay.tsx
+│   │   ├── ReportModal.tsx
 │   │   ├── SuccessDisplay.tsx
 │   │   ├── TrialsDisplay.tsx
 │   │   ├── VoiceChat.tsx
@@ -40,6 +45,8 @@
 │   │   ├── ctg-tool-def-short.ts
 │   │   ├── ctg-tool-def.ts
 │   │   ├── ctg-tool.ts
+│   │   ├── final-results-handler.ts
+│   │   ├── report-handler.ts
 │   │   ├── utils.ts
 │   │   └── wavtools
 │   │       ├── index.js
@@ -76,4 +83,4 @@
 ├── tsconfig.json
 └── tsconfig_og.json
 
-17 directories, 60 files
+18 directories, 66 files
