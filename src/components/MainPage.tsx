@@ -1,29 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/**
- * src/components/ConsolePageOG.tsx - Original ConsolePage Component
- *
- * This component handles the connection to the OpenAI Realtime API,
- * manages conversation state, and renders the clinical trials research UI.
- *
- * Local Relay Server Configuration:
- * - Set REACT_APP_LOCAL_RELAY_SERVER_URL=http://localhost:8081
- * - Requires OPENAI_API_KEY in .env file
- * - Run with `npm run relay` parallel to `npm start`
- */
-
-// Core dependencies
-import { useEffect, useRef, useCallback, useState } from 'react';
-
-// External libraries
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { RealtimeClient } from '@openai/realtime-api-beta';
 import type { ItemType } from '@openai/realtime-api-beta/dist/lib/client.js';
+import { Mic, Eye, EyeOff, PhoneOff, MicOff } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-// Internal utilities
+// Import all the required utilities and tools
 import { WavRecorder, WavStreamPlayer } from '@/lib/wavtools/index.js';
 import { WavRenderer } from '@/utils/wav_renderer';
 import { instructions } from '@/utils/model_instructions.js';
-
-// Features
 import {
   CTG_TOOL_DEFINITION,
   getClinicalTrials,
@@ -35,22 +22,15 @@ import {
   type TrialsReport,
 } from '../lib/report-handler';
 
-// Components
+// Import components
 import TrialsDisplay from './TrialsDisplay';
 import ReportModal from '@/components/ReportModal';
-import { Button } from '@/components/button/Button';
-import { Toggle } from '@/components/toggle/Toggle';
-
-// Styles
-import './ConsolePage.scss';
 
 // Constants
 const LOCAL_RELAY_SERVER_URL: string =
   import.meta.env.REACT_APP_LOCAL_RELAY_SERVER_URL || '';
 
-/**
- * Type for all event logs.
- */
+// Types
 interface RealtimeEvent {
   time: string;
   source: 'client' | 'server';
@@ -58,29 +38,27 @@ interface RealtimeEvent {
   event: { [key: string]: any };
 }
 
-/**
- * The main component for the console page.
- * This component handles the connection to the OpenAI Realtime API,
- * manages the state of the conversation, and renders the UI.
- */
-export function ConsolePageOG() {
-  /**
-   * State Management Section
-   * Organized by functionality for better code organization
-   */
+export default function MainPage() {
+  // Screen Management from App.tsx
+  const [currentScreen, setCurrentScreen] = useState('landing');
+  const [showConversation, setShowConversation] = useState(false);
+  const [activeTab, setActiveTab] = useState('results');
 
-  // API and Client State
+  // Core State from ConsolePageOG
   const [apiKey, setApiKey] = useState<string>('');
-  // Initialize client ref with null and update it when apiKey is available
   const clientRef = useRef<RealtimeClient | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const startTimeRef = useRef<string>(new Date().toISOString());
 
-  /**
-   * Instantiate:
-   * - WavRecorder (speech input)
-   * - WavStreamPlayer (speech output)
-   * - RealtimeClient (API client)
-   */
+  // Conversation and Memory State
+  const [items, setItems] = useState<ItemType[]>([]);
+  const [memoryKv, setMemoryKv] = useState<{ [key: string]: any }>({});
+  const [realtimeEvents, setRealtimeEvents] = useState<RealtimeEvent[]>([]);
+  const [expandedEvents, setExpandedEvents] = useState<{
+    [key: string]: boolean;
+  }>({});
+
+  // Audio State and Refs
   const wavRecorderRef = useRef<WavRecorder>(
     new WavRecorder({ sampleRate: 24000 })
   );
@@ -90,47 +68,19 @@ export function ConsolePageOG() {
   const [canPushToTalk, setCanPushToTalk] = useState(true);
   const [isRecording, setIsRecording] = useState(false);
 
-  /**
-   * All of our variables for displaying application state:
-   * - items are all conversation items (dialog)
-   * - realtimeEvents are event logs, which can be expanded
-   * - memoryKv is for set_memory() function
-   * - trials and isLoadingTrials are for get_trials() function
-   */
-  // Conversation State
-  const [items, setItems] = useState<ItemType[]>([]);
-  const [memoryKv, setMemoryKv] = useState<{ [key: string]: any }>({});
-
-  // Event Logging State
-  const [realtimeEvents, setRealtimeEvents] = useState<RealtimeEvent[]>([]);
-  const [expandedEvents, setExpandedEvents] = useState<{
-    [key: string]: boolean;
-  }>({});
-  const startTimeRef = useRef<string>(new Date().toISOString());
-
-  // UI References
-  /**
-   * References for:
-   * - Rendering audio visualization (canvas)
-   * - Autoscrolling event logs
-   * - Timing delta for event log displays
-   */
-  const clientCanvasRef = useRef<HTMLCanvasElement>(null);
-  const serverCanvasRef = useRef<HTMLCanvasElement>(null);
-  const eventsScrollHeightRef = useRef(0);
-  const eventsScrollRef = useRef<HTMLDivElement>(null);
-
   // Trials and Report State
   const [trials, setTrials] = useState<StudyInfo[]>([]);
   const [isLoadingTrials, setIsLoadingTrials] = useState(false);
   const [finalReport, setFinalReport] = useState<TrialsReport | null>(null);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
-  /**
-   * Utility Functions
-   * Helper functions for formatting and general purpose use
-   */
-  // Utility for formatting the timing of logs
+  // UI Refs
+  const visualizerRef = useRef<HTMLCanvasElement>(null);
+  const animationFrameRef = useRef<number>();
+  const eventsScrollRef = useRef<HTMLDivElement>(null);
+  const eventsScrollHeightRef = useRef(0);
+
+  // Utility Functions
   const formatTime = useCallback((timestamp: string) => {
     const startTime = startTimeRef.current;
     const t0 = new Date(startTime).valueOf();
@@ -149,10 +99,7 @@ export function ConsolePageOG() {
     return `${pad(m)}:${pad(s)}.${pad(hs)}`;
   }, []);
 
-  /**
-   * When you click the API key
-   * Allows manual reset of the API key
-   */
+  // API Key Management
   const resetAPIKey = useCallback(() => {
     const apiKey = prompt('OpenAI API Key');
     if (apiKey !== null) {
@@ -162,15 +109,17 @@ export function ConsolePageOG() {
     }
   }, []);
 
-  /**
-   * Tool Management
-   * Handles setup and configuration of available tools
-   */
+  // Continue with Part 2 for the core functionality and UI
+  // components...
+  // ... continuing from Part 1
+
+  // Tool Management
   const addTools = useCallback(() => {
     if (!clientRef.current) return;
 
     const client = clientRef.current;
 
+    // Memory Tool
     client.addTool(
       {
         name: 'set_memory',
@@ -181,7 +130,7 @@ export function ConsolePageOG() {
             key: {
               type: 'string',
               description:
-                'The key of the memory value. Always use lowercase and underscores, no other characters.',
+                'The key of the memory value. Always use lowercase and underscores.',
             },
             value: {
               type: 'string',
@@ -201,16 +150,14 @@ export function ConsolePageOG() {
       }
     );
 
+    // Clinical Trials Tool
     client.addTool(CTG_TOOL_DEFINITION, async (params: any) => {
       try {
         setIsLoadingTrials(true);
         setTrials([]);
 
         const trials = await getClinicalTrials(params);
-
-        // Update latest trials in report handler
         reportHandler.updateLatestTrials(trials, params);
-
         setTrials(trials);
         setIsLoadingTrials(false);
 
@@ -236,7 +183,7 @@ export function ConsolePageOG() {
       }
     });
 
-    // Add report generation tool
+    // Report Generation Tool
     client.addTool(REPORT_TOOL_DEFINITION, async (params: any) => {
       try {
         const report = reportHandler.generateReport(
@@ -247,7 +194,7 @@ export function ConsolePageOG() {
         );
 
         setFinalReport(report);
-        setIsReportModalOpen(true); // Open modal when assistant generates report
+        setIsReportModalOpen(true);
 
         return {
           status: 'success',
@@ -264,77 +211,42 @@ export function ConsolePageOG() {
       }
     });
 
-    // Update session after adding tools
     client.updateSession();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientRef]);
+  }, []);
 
-  /**
-   * Connection Management
-   * Connect to conversation:
-   * Handles establishing and terminating connections
-   * WavRecorder takes speech input, WavStreamPlayer output, client is API client
-   */
+  // Connection Management
   const connectConversation = useCallback(async () => {
-    console.log('jkd connectConversation', '==clientRef', clientRef);
-    console.log(
-      'jb === !clientRef.current gets resolved to',
-      !clientRef.current
-    );
     if (!clientRef.current) return;
 
-    // if clientRef.current.tools object is empty trigger addTools
     const toolsList = Object.keys(clientRef.current.tools);
     const client = clientRef.current;
 
     if (toolsList.length === 0) {
       addTools();
-
-      // Update session after adding tools
       client.updateSession();
     }
 
     const wavRecorder = wavRecorderRef.current;
     const wavStreamPlayer = wavStreamPlayerRef.current;
 
-    // Set state variables
     startTimeRef.current = new Date().toISOString();
     setIsConnected(true);
     setRealtimeEvents([]);
     setItems(client.conversation.getItems());
 
-    // Connect to microphone
     await wavRecorder.begin();
-
-    // Connect to audio output
     await wavStreamPlayer.connect();
-
-    // Connect to realtime API
-    console.log('jb connectConversation', '==client.connect()');
     await client.connect();
-    console.log('jb connectConversation', '==client.connect() done');
-    // client.sendUserMessageContent([
-    //   {
-    //     type: `input_text`,
-    //     text: `Hello! I'm looking for clinical trials that might be suitable for me.`,
-    //   },
-    // ]);
-    console.log('Forcing model response generation');
+
     client.createResponse();
-    console.log('Model response creation complete');
 
     if (client.getTurnDetectionType() === 'server_vad') {
       await wavRecorder.record(data => client.appendInputAudio(data.mono));
     }
 
     console.log('Connected to conversation');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientRef]);
+  }, [addTools]);
 
-  /**
-   * Disconnect and reset conversation state
-   * Cleans up all connections and resets state
-   */
   const disconnectConversation = useCallback(async () => {
     if (!clientRef.current) return;
 
@@ -344,54 +256,42 @@ export function ConsolePageOG() {
     setMemoryKv({});
     setTrials([]);
     setIsLoadingTrials(false);
-    // setFinalReport(null);
-    // reportHandler.clear();
 
     const client = clientRef.current;
-    client?.disconnect(); // Safely disconnect if client exists
+    client?.disconnect();
 
     const wavRecorder = wavRecorderRef.current;
     await wavRecorder.end();
 
     const wavStreamPlayer = wavStreamPlayerRef.current;
     wavStreamPlayer.interrupt();
-  }, [clientRef]);
-  // }, [clientRef, wavRecorderRef, wavStreamPlayerRef]);
-  // }, [apiKey, clientRef, wavRecorderRef, wavStreamPlayerRef]);
+  }, []);
 
-  /**
-   * Full cleanup including report data
-   * Use this for complete reset of the application state
-   */
   const fullCleanup = useCallback(async () => {
     await disconnectConversation();
     setFinalReport(null);
     reportHandler.clear();
   }, [disconnectConversation]);
 
-  /**
-   * Audio Management
-   * Handles all audio recording and playback functionality
-   */
-  const startRecording = async () => {
+  // Audio Control Functions
+  const startRecording = useCallback(async () => {
     if (!clientRef.current) return;
 
     setIsRecording(true);
     const client = clientRef.current;
     const wavRecorder = wavRecorderRef.current;
     const wavStreamPlayer = wavStreamPlayerRef.current;
+
     const trackSampleOffset = wavStreamPlayer.interrupt();
     if (trackSampleOffset?.trackId) {
       const { trackId, offset } = trackSampleOffset;
       client.cancelResponse(trackId, offset);
     }
-    await wavRecorder.record(data => client.appendInputAudio(data.mono));
-  };
 
-  /**
-   * In push-to-talk mode, stop recording
-   */
-  const stopRecording = async () => {
+    await wavRecorder.record(data => client.appendInputAudio(data.mono));
+  }, []);
+
+  const stopRecording = useCallback(async () => {
     if (!clientRef.current) return;
 
     setIsRecording(false);
@@ -399,33 +299,30 @@ export function ConsolePageOG() {
     const wavRecorder = wavRecorderRef.current;
     await wavRecorder.pause();
     client.createResponse();
-  };
+  }, []);
 
-  /**
-   * Switch between Manual <> VAD mode for communication
-   * Handles turn detection type changes
-   */
-  const changeTurnEndType = async (value: string) => {
+  const changeTurnEndType = useCallback(async (value: string) => {
     if (!clientRef.current) return;
 
     const client = clientRef.current;
     const wavRecorder = wavRecorderRef.current;
+
     if (value === 'none' && wavRecorder.getStatus() === 'recording') {
       await wavRecorder.pause();
     }
+
     client.updateSession({
       turn_detection: value === 'none' ? null : { type: 'server_vad' },
     });
+
     if (value === 'server_vad' && client.isConnected()) {
       await wavRecorder.record(data => client.appendInputAudio(data.mono));
     }
-    setCanPushToTalk(value === 'none');
-  };
 
-  /**
-   * Report Management
-   * Handles manual report generation and conversation end
-   */
+    setCanPushToTalk(value === 'none');
+  }, []);
+
+  // Report Management
   const handleManualReportGeneration = useCallback(async () => {
     if (!reportHandler.getLatestTrials().length) {
       console.warn('No trials available for report generation');
@@ -433,63 +330,35 @@ export function ConsolePageOG() {
     }
 
     try {
-      // Generate report first
-      const report = reportHandler.generateReport(
-        memoryKv,
-        'user',
-        true // mark as complete since user is ending conversation
-      );
+      const report = reportHandler.generateReport(memoryKv, 'user', true);
       setFinalReport(report);
-      console.log('Report set:', report);
-      setIsReportModalOpen(true); // Open modal after report generation
-      console.log('Report modal opened');
-
-      // Then disconnect conversation
+      setIsReportModalOpen(true);
       await disconnectConversation();
-
       console.log('Report generated and conversation ended by user');
     } catch (error) {
       console.error('Error during report generation:', error);
-      // Optionally show error to user
     }
   }, [memoryKv, disconnectConversation]);
 
-  /**
-   * Delete a conversation item by its ID.
-   *
-   * @param id - The ID of the item to delete.
-   */
-  const deleteConversationItem = useCallback(
-    async (id: string) => {
-      if (!clientRef.current) return;
+  // Conversation Management
+  const deleteConversationItem = useCallback(async (id: string) => {
+    if (!clientRef.current) return;
+    clientRef.current.deleteItem(id);
+  }, []);
 
-      const client = clientRef.current;
-      client.deleteItem(id);
-    },
-    [clientRef]
-  );
+  // Continue with Part 2b for Effects and UI Components...
+  // ... continuing from Part 2a
 
-  /**
-   * Effect Hooks
-   * Organized by initialization order and dependencies
-   */
-
-  /**
-   * API and Client Initialization
-   * Ask user for API Key.
-   * If we're using the local relay server, we don't need this.
-   */
-  // Fetch API key on component mount
+  // Effects
+  // API Key Initialization
   useEffect(() => {
     async function fetchConfig() {
       try {
-        console.log('Fetching configuration from /api/config');
         const response = await fetch('/api/config');
         const data = await response.json();
         if (!data.apiKey) {
           throw new Error('No API key found in configuration');
         }
-        console.log('Configuration data:', data);
         setApiKey(data.apiKey);
       } catch (error) {
         console.error('Error fetching config:', error);
@@ -500,7 +369,6 @@ export function ConsolePageOG() {
 
   useEffect(() => {
     if (apiKey) {
-      console.log('Initializing RealtimeClient with API key:', apiKey);
       clientRef.current = new RealtimeClient(
         LOCAL_RELAY_SERVER_URL
           ? { url: LOCAL_RELAY_SERVER_URL }
@@ -512,39 +380,23 @@ export function ConsolePageOG() {
     }
   }, [apiKey]);
 
-  /**
-   * Tool and Core Setup
-   */
+  // Tool Setup
   useEffect(() => {
     addTools();
-  }, [addTools]); // ? jb
-  // }, [apiKey, addTools]); // ? jkd
+  }, [addTools]);
 
-  /**
-   * Core RealtimeClient and audio capture setup
-   * Set all of our instructions, tools, events and more
-   */
+  // RealtimeClient Setup
   useEffect(() => {
-    console.log('Starting RealtimeClient setup and connection to conversation');
     if (!clientRef.current) return;
 
-    // Get refs
     const client = clientRef.current;
     const wavStreamPlayer = wavStreamPlayerRef.current;
 
     // Initialize session settings
-    // Set instructions
-    console.log('Setting instructions and transcription model:', instructions, {
-      model: 'whisper-1',
-    });
-
-    client.updateSession({ instructions: instructions });
-    // Set transcription, otherwise we don't get user transcriptions back
+    client.updateSession({ instructions });
     client.updateSession({ input_audio_transcription: { model: 'whisper-1' } });
 
-    // Event handlers setup
-    // handle realtime events from client + server for event logging
-    console.log('Setting up event listeners');
+    // Event handlers
     const eventHandlers = {
       'realtime.event': (realtimeEvent: RealtimeEvent) => {
         setRealtimeEvents(events => {
@@ -583,7 +435,6 @@ export function ConsolePageOG() {
       },
     };
 
-    // Attach event handlers
     Object.entries(eventHandlers).forEach(([event, handler]) => {
       client.on(event, handler);
     });
@@ -591,14 +442,11 @@ export function ConsolePageOG() {
     setItems(client.conversation.getItems());
 
     return () => {
-      client.reset(); // cleanup; resets to defaults
+      client.reset();
     };
-  }, [apiKey, clientRef]);
+  }, [apiKey]);
 
-  /**
-   * UI Effects
-   * Auto-scroll the event logs
-   */
+  // Auto-scroll Effects
   useEffect(() => {
     if (!eventsScrollRef.current) return;
     const eventsEl = eventsScrollRef.current;
@@ -609,321 +457,231 @@ export function ConsolePageOG() {
     }
   }, [realtimeEvents]);
 
-  /**
-   * Auto-scroll the conversation logs
-   */
-  // useEffect(() => {
-  //   const conversationEls = [].slice.call(
-  //     document.body.querySelectorAll('[data-conversation-content]')
-  //   );
-  //   for (const el of conversationEls) {
-  //     const conversationEl = el as HTMLDivElement;
-  //     conversationEl.scrollTop = conversationEl.scrollHeight;
-  //   }
-  // }, [items]);
   useEffect(() => {
     document.querySelectorAll('[data-conversation-content]').forEach(el => {
       (el as HTMLDivElement).scrollTop = el.scrollHeight;
     });
   }, [items]);
 
-  /**
-   * Visualization Effect
-   * Set up render loops for the visualization canvas
-   *
-   * This is where the audio visualization is rendered.
-   */
+  // Audio Visualization Effect
   useEffect(() => {
+    if (!visualizerRef.current || !isRecording) return;
+
+    const canvas = visualizerRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
     let isLoaded = true;
-    const renderContext = {
-      wavRecorder: wavRecorderRef.current,
-      wavStreamPlayer: wavStreamPlayerRef.current,
-      clientCanvas: clientCanvasRef.current,
-      serverCanvas: serverCanvasRef.current,
-      clientCtx: null as CanvasRenderingContext2D | null,
-      serverCtx: null as CanvasRenderingContext2D | null,
-    };
 
-    function renderCanvas(
-      canvas: HTMLCanvasElement | null,
-      ctx: CanvasRenderingContext2D | null,
-      source: any,
-      color: string
-    ) {
-      if (!canvas) return null;
+    const animate = () => {
+      if (!isLoaded || !ctx) return;
 
-      if (!canvas.width || !canvas.height) {
-        canvas.width = canvas.offsetWidth;
-        canvas.height = canvas.offsetHeight;
+      const width = canvas.width;
+      const height = canvas.height;
+      ctx.clearRect(0, 0, width, height);
+
+      // Draw base circle
+      ctx.beginPath();
+      ctx.arc(width / 2, height / 2, 50, 0, 2 * Math.PI);
+      ctx.strokeStyle = '#666';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Animate waves when recording
+      if (isRecording) {
+        const time = Date.now() / 1000;
+        const numWaves = 3;
+        for (let i = 0; i < numWaves; i++) {
+          const radius = 50 + Math.sin(time * 2 + i) * 10;
+          ctx.beginPath();
+          ctx.arc(width / 2, height / 2, radius, 0, 2 * Math.PI);
+          ctx.strokeStyle = `rgba(100, 100, 100, ${0.3 - i * 0.1})`;
+          ctx.stroke();
+        }
       }
 
-      ctx = ctx || canvas.getContext('2d');
-      if (!ctx) return null;
+      animationFrameRef.current = requestAnimationFrame(animate);
+    };
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      const values =
-        source.getFrequencies?.('voice')?.values || new Float32Array([0]);
+    animate();
 
-      WavRenderer.drawBars(canvas, ctx, values, color, 10, 0, 8);
-      return ctx;
-    }
-
-    function render() {
-      if (!isLoaded) return;
-
-      renderContext.clientCtx = renderCanvas(
-        renderContext.clientCanvas,
-        renderContext.clientCtx,
-        renderContext.wavRecorder.recording ? renderContext.wavRecorder : {},
-        '#0099ff'
-      );
-
-      renderContext.serverCtx = renderCanvas(
-        renderContext.serverCanvas,
-        renderContext.serverCtx,
-        renderContext.wavStreamPlayer.analyser
-          ? renderContext.wavStreamPlayer
-          : {},
-        '#009900'
-      );
-
-      window.requestAnimationFrame(render);
-    }
-
-    render();
     return () => {
       isLoaded = false;
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
     };
-  }, []);
+  }, [isRecording]);
 
-  /**
-   * Render the application UI
-   */
-  return (
-    <div data-component="ConsolePage">
-      <div className="content-top">
-        <div className="content-title">
-          {/* <img src="/openai-logomark.svg" alt="OpenAI Logo" /> */}
-          <span>Clinical Trials Research Assistant</span>
-        </div>
-        <div className="content-api-key">
-          {!LOCAL_RELAY_SERVER_URL && (
-            <Button
-              // icon={Edit}
-              // iconPosition="end"
-              buttonStyle="flush"
-              // label={`api key: ${apiKey.slice(0, 3)}...`}
-              onClick={() => resetAPIKey()}
-            />
-          )}
-        </div>
+  // UI Components
+  const LandingScreen = () => (
+    <div className="flex flex-col items-center justify-center min-h-screen p-6 text-center">
+      <h1 className="text-5xl font-bold leading-tight mb-6">
+        Find the Right Clinical Trial, Anywhere, Anytime
+      </h1>
+      <p className="text-lg text-gray-600 mb-16 max-w-2xl">
+        Search for trials in your language, tailored to your knowledge level.
+      </p>
+      <div className="flex flex-col items-center">
+        <p className="text-sm mb-4">Tap to start</p>
+        <Button
+          variant="outline"
+          size="icon"
+          className="w-20 h-20 rounded-full"
+          onClick={async () => {
+            await connectConversation();
+            setCurrentScreen('voiceChat');
+          }}
+        >
+          <Mic className="w-8 h-8" />
+        </Button>
       </div>
-      <div className="content-main">
-        <div className="content-logs">
-          <div className="content-block events">
-            <div className="visualization">
-              <div className="visualization-entry client">
-                <canvas ref={clientCanvasRef} />
-              </div>
-              <div className="visualization-entry server">
-                <canvas ref={serverCanvasRef} />
-              </div>
-            </div>
-            <div className="content-block-title">events</div>
-            <div className="content-block-body" ref={eventsScrollRef}>
-              {!realtimeEvents.length && `awaiting connection...`}
-              {realtimeEvents.map(realtimeEvent => {
-                const count = realtimeEvent.count;
-                const event = { ...realtimeEvent.event };
-                if (event.type === 'input_audio_buffer.append') {
-                  event.audio = `[trimmed: ${event.audio.length} bytes]`;
-                } else if (event.type === 'response.audio.delta') {
-                  event.delta = `[trimmed: ${event.delta.length} bytes]`;
-                }
-                return (
-                  <div className="event" key={event.event_id}>
-                    <div className="event-timestamp">
-                      {formatTime(realtimeEvent.time)}
-                    </div>
-                    <div className="event-details">
-                      <div
-                        className="event-summary"
-                        onClick={() => {
-                          // toggle event details
-                          const id = event.event_id;
-                          const expanded = { ...expandedEvents };
-                          if (expanded[id]) {
-                            delete expanded[id];
-                          } else {
-                            expanded[id] = true;
-                          }
-                          setExpandedEvents(expanded);
-                        }}
-                      >
-                        <div
-                          className={`event-source ${
-                            event.type === 'error'
-                              ? 'error'
-                              : realtimeEvent.source
-                          }`}
-                        >
-                          {realtimeEvent.source === 'client' ? (
-                            <b>Up</b>
-                          ) : (
-                            <b>Down</b>
-                          )}
-                          <span>
-                            {event.type === 'error'
-                              ? 'error!'
-                              : realtimeEvent.source}
-                          </span>
-                        </div>
-                        <div className="event-type">
-                          {event.type}
-                          {count && ` (${count})`}
-                        </div>
-                      </div>
-                      {!!expandedEvents[event.event_id] && (
-                        <div className="event-payload">
-                          {JSON.stringify(event, null, 2)}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-          <div className="content-block conversation">
-            <div className="content-block-title">conversation</div>
-            <div className="content-block-body" data-conversation-content>
-              {!items.length && `awaiting connection...`}
-              {items.map(conversationItem => (
-                <div className="conversation-item" key={conversationItem.id}>
-                  <div className={`speaker ${conversationItem.role || ''}`}>
-                    <div>
-                      {(
-                        conversationItem.role || conversationItem.type
-                      ).replaceAll('_', ' ')}
-                    </div>
-                    <div
-                      className="close"
-                      onClick={() =>
-                        deleteConversationItem(conversationItem.id)
-                      }
-                    >
-                      <b>Delete</b>
-                    </div>
-                  </div>
-                  <div className={`speaker-content`}>
-                    {/* tool response */}
-                    {conversationItem.type === 'function_call_output' && (
-                      <div>{conversationItem.formatted.output}</div>
-                    )}
-                    {/* tool call */}
-                    {!!conversationItem.formatted.tool && (
-                      <div>
-                        {conversationItem.formatted.tool.name}(
-                        {conversationItem.formatted.tool.arguments})
-                      </div>
-                    )}
-                    {!conversationItem.formatted.tool &&
-                      conversationItem.role === 'user' && (
-                        <div>
-                          {conversationItem.formatted.transcript ||
-                            (conversationItem.formatted.audio?.length
-                              ? '(awaiting transcript)'
-                              : conversationItem.formatted.text ||
-                                '(item sent)')}
-                        </div>
-                      )}
-                    {!conversationItem.formatted.tool &&
-                      conversationItem.role === 'assistant' && (
-                        <div>
-                          {conversationItem.formatted.transcript ||
-                            conversationItem.formatted.text ||
-                            '(truncated)'}
-                        </div>
-                      )}
-                    {conversationItem.formatted.file && (
-                      <audio
-                        src={conversationItem.formatted.file.url}
-                        controls
-                      />
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="content-actions">
-            <Toggle
-              defaultValue={false}
-              labels={['manual', 'vad']}
-              values={['none', 'server_vad']}
-              onChange={(_, value) => changeTurnEndType(value)}
-            />
-            <div className="spacer" />
-            {isConnected && canPushToTalk && (
-              <Button
-                label={isRecording ? 'release to send' : 'push to talk'}
-                buttonStyle={isRecording ? 'alert' : 'regular'}
-                disabled={!isConnected || !canPushToTalk}
-                onMouseDown={startRecording}
-                onMouseUp={stopRecording}
-              />
-            )}
-            <div className="spacer" />
-            <Button
-              label={isConnected ? 'disconnect & reset' : 'connect'}
-              iconPosition={isConnected ? 'end' : 'start'}
-              // icon={isConnected ? "x" : Zap}
-              buttonStyle={isConnected ? 'regular' : 'action'}
-              // onClick={(e) => console.log("jkd connect", e)}
-              onClick={isConnected ? fullCleanup : connectConversation}
-            />
-            <div className="spacer" />
-            {isConnected && (
-              <Button
-                label="End Chat & Generate Report"
-                buttonStyle="action"
-                onClick={handleManualReportGeneration}
-                disabled={!reportHandler.getLatestTrials().length}
-              />
-            )}
-          </div>
-        </div>
-        <div className="content-right">
-          <div className="content-block kv z-[1]">
-            <div className="content-block-title">user information</div>
-            <div className="content-block-body content-kv">
-              {JSON.stringify(memoryKv, null, 2)}
-            </div>
-          </div>
-          <div className="content-block trials bg-zinc-50 z-[1]">
-            <div className="content-block-title">clinical trials</div>
-            <div className="content-block-body mt-12">
-              <TrialsDisplay trials={trials} isLoading={isLoadingTrials} />
-            </div>
-          </div>
-        </div>
+    </div>
+  );
+
+  const VoiceChatScreen = () => (
+    <div className="flex flex-col items-center min-h-screen p-6">
+      <h1 className="text-2xl font-bold mb-12">Clinical Trial Finder</h1>
+
+      <div className="flex-grow flex items-center justify-center w-full">
+        <canvas
+          ref={visualizerRef}
+          className="w-32 h-32"
+          width={128}
+          height={128}
+        />
       </div>
 
-      {/* Consider updating button labels/states based on report existence */}
-      {finalReport && (
-        <div className="report-status">
-          <span>
-            Report generated at{' '}
-            {new Date(finalReport.timestamp).toLocaleTimeString()}
+      {showConversation && (
+        <ScrollArea className="w-full max-w-md h-48 mb-8 border rounded-lg p-4">
+          {items.map(item => (
+            <div
+              key={item.id}
+              className={`mb-2 ${
+                item.role === 'system'
+                  ? 'text-gray-500'
+                  : item.role === 'assistant'
+                    ? 'text-blue-600'
+                    : 'text-green-600'
+              }`}
+            >
+              <strong>{item.role}:</strong>{' '}
+              {item.formatted.transcript || item.formatted.text}
+            </div>
+          ))}
+        </ScrollArea>
+      )}
+
+      <div className="w-full max-w-md flex justify-center space-x-8 mt-8">
+        <div className="flex flex-col items-center">
+          <Button
+            variant="outline"
+            size="icon"
+            className="rounded-full w-12 h-12 mb-2"
+            onClick={() => setShowConversation(!showConversation)}
+          >
+            {showConversation ? (
+              <EyeOff className="w-6 h-6" />
+            ) : (
+              <Eye className="w-6 h-6" />
+            )}
+          </Button>
+          <span className="text-sm text-gray-600">
+            {showConversation ? 'Hide Convo' : 'View Convo'}
           </span>
         </div>
-      )}
+
+        <div className="flex flex-col items-center">
+          <Button
+            variant="outline"
+            size="icon"
+            className="rounded-full w-12 h-12 mb-2"
+            onMouseDown={startRecording}
+            onMouseUp={stopRecording}
+            disabled={!isConnected || !canPushToTalk}
+          >
+            {isRecording ? (
+              <MicOff className="w-6 h-6" />
+            ) : (
+              <Mic className="w-6 h-6" />
+            )}
+          </Button>
+          <span className="text-sm text-gray-600">
+            {isRecording ? 'Recording...' : 'Push to Talk'}
+          </span>
+        </div>
+
+        <div className="flex flex-col items-center">
+          <Button
+            variant="outline"
+            size="icon"
+            className="rounded-full w-12 h-12 mb-2"
+            onClick={async () => {
+              await handleManualReportGeneration();
+              setCurrentScreen('results');
+            }}
+          >
+            <PhoneOff className="w-6 h-6" />
+          </Button>
+          <span className="text-sm text-gray-600">End Chat</span>
+        </div>
+      </div>
+    </div>
+  );
+
+  const ResultsScreen = () => (
+    <div className="flex flex-col items-center min-h-screen p-6">
+      <h1 className="text-4xl font-bold text-center mb-4">
+        Clinical Trial Results
+      </h1>
+      <p className="text-gray-600 text-center mb-8">
+        We found {trials.length} matching trials
+      </p>
+
+      <Button
+        className="mb-8 bg-gray-900 text-white"
+        onClick={async () => {
+          await connectConversation();
+          setCurrentScreen('voiceChat');
+        }}
+      >
+        <Mic className="w-4 h-4 mr-2" />
+        Start another search
+      </Button>
+
+      <div className="w-full max-w-2xl">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="results">Results</TabsTrigger>
+            <TabsTrigger value="info">Your information</TabsTrigger>
+          </TabsList>
+          <TabsContent value="results">
+            <ScrollArea className="h-[400px] rounded-md border p-4">
+              <TrialsDisplay trials={trials} isLoading={isLoadingTrials} />
+            </ScrollArea>
+          </TabsContent>
+          <TabsContent value="info">
+            <div className="rounded-md border p-4">
+              <pre className="text-sm">{JSON.stringify(memoryKv, null, 2)}</pre>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
 
       <ReportModal
         report={finalReport}
         isOpen={isReportModalOpen}
         onClose={() => setIsReportModalOpen(false)}
       />
+    </div>
+  );
+
+  // Main Render
+  return (
+    <div className="min-h-screen bg-white">
+      {currentScreen === 'landing' && <LandingScreen />}
+      {currentScreen === 'voiceChat' && <VoiceChatScreen />}
+      {currentScreen === 'results' && <ResultsScreen />}
     </div>
   );
 }
