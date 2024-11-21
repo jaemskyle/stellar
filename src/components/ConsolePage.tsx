@@ -110,14 +110,6 @@ export function ConsolePage({
       cleanupAudio,
     });
 
-  // Add missing state initializations
-  useEffect(() => {
-    if (clientRef.current) {
-      setItems(clientRef.current.conversation.getItems());
-      startTimeRef.current = new Date().toISOString();
-    }
-  }, [clientRef.current]);
-
   // Update report generation to include all deps
   const handleManualReportGeneration = useCallback(async () => {
     if (!reportHandler.getLatestTrials().length) {
