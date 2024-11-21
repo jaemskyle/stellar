@@ -1,5 +1,5 @@
 /**
- * ConsolePage Component
+ * src/components/ConsolePage.tsx - ConsolePage Component
  *
  * This component handles the connection to the OpenAI Realtime API,
  * manages conversation state, and renders the clinical trials research UI.
@@ -20,7 +20,7 @@ import type { ItemType } from '@openai/realtime-api-beta/dist/lib/client.js';
 // Internal utilities
 import { WavRecorder, WavStreamPlayer } from '@/lib/wavtools/index.js';
 import { WavRenderer } from '@/utils/wav_renderer';
-import { instructions } from '@/utils/conversation_config.js';
+import { instructions } from '@/utils/model_instructions.js';
 
 // Features
 import {
