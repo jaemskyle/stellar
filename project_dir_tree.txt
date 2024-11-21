@@ -6,6 +6,8 @@
 ├── astro.config.mjs
 ├── components.json
 ├── eslint.config.mjs
+├── misc
+│   └── Project Continuation - Clinical Trials.md
 ├── package-lock.json
 ├── package.json
 ├── package_og.json
@@ -15,6 +17,7 @@
 ├── public
 │   └── favicon.svg
 ├── src
+│   ├── App.tsx
 │   ├── components
 │   │   ├── Card.astro
 │   │   ├── ConsolePage.scss
@@ -25,6 +28,7 @@
 │   │   ├── ProductDisplay.tsx
 │   │   ├── ReportModal.tsx
 │   │   ├── SuccessDisplay.tsx
+│   │   ├── TestButton.tsx
 │   │   ├── TrialsDisplay.tsx
 │   │   ├── VoiceChat.tsx
 │   │   ├── button
@@ -83,4 +87,4 @@
 ├── tsconfig.json
 └── tsconfig_og.json
 
-18 directories, 66 files
+19 directories, 69 files
