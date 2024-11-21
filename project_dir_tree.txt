@@ -1,13 +1,9 @@
 .
-├── Here is the updated code
-├── Here is the updated code listing for the file
 ├── OPEN_SOURCE_ROADMAP.md
 ├── README.md
 ├── astro.config.mjs
 ├── components.json
 ├── eslint.config.mjs
-├── misc
-│   └── Project Continuation - Clinical Trials.md
 ├── package-lock.json
 ├── package.json
 ├── package_og.json
@@ -17,12 +13,10 @@
 ├── public
 │   └── favicon.svg
 ├── src
-│   ├── App.tsx
 │   ├── components
 │   │   ├── Card.astro
 │   │   ├── ConsolePage.scss
 │   │   ├── ConsolePage.tsx
-│   │   ├── ConsolePage_backup.tsx
 │   │   ├── Logo.tsx
 │   │   ├── Message.tsx
 │   │   ├── ProductDisplay.tsx
@@ -46,10 +40,8 @@
 │   │   ├── Layout.astro
 │   │   └── SiteLayout.astro
 │   ├── lib
-│   │   ├── ctg-tool-def-short.ts
 │   │   ├── ctg-tool-def.ts
 │   │   ├── ctg-tool.ts
-│   │   ├── final-results-handler.ts
 │   │   ├── report-handler.ts
 │   │   ├── utils.ts
 │   │   └── wavtools
@@ -80,11 +72,10 @@
 │   ├── styles
 │   │   └── globals.css
 │   └── utils
-│       ├── conversation_config.js
-│       ├── conversation_config_short.js
+│       ├── model_instructions.js
 │       └── wav_renderer.ts
 ├── tailwind.config.mjs
 ├── tsconfig.json
 └── tsconfig_og.json
 
-19 directories, 69 files
+18 directories, 61 files
