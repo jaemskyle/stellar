@@ -1,21 +1,27 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // src/components/console/AudioVisualizer.tsx
 
 import React, { useEffect, useRef } from 'react';
-import type { WavRecorder, WavStreamPlayer } from '@/lib/wavtools';
 import { WavRenderer } from '@/utils/wav_renderer';
+import type { AudioVisualizerProps } from '@/types/console';
 
-interface AudioVisualizerProps {
-  recorder: WavRecorder;
-  player: WavStreamPlayer;
-}
-
-export function AudioVisualizer({ recorder, player }: AudioVisualizerProps) {
-  // Direct port of canvas refs from ConsolePage
+export function AudioVisualizer({
+  recorder,
+  player,
+  clientColor = '#0099ff',
+  serverColor = '#009900',
+}: AudioVisualizerProps) {
+  // Direct port of canvas refs and context from ConsolePageOG
   const clientCanvasRef = useRef<HTMLCanvasElement>(null);
   const serverCanvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Direct port of visualization effect from ConsolePage
+  // Audio visualization effect - exact port from ConsolePageOG
   useEffect(() => {
+    if (!recorder || !player) {
+      console.warn('Audio devices not initialized');
+      return;
+    }
+
     let isLoaded = true;
     const renderContext = {
       wavRecorder: recorder,
@@ -32,22 +38,27 @@ export function AudioVisualizer({ recorder, player }: AudioVisualizerProps) {
       source: any,
       color: string
     ) {
-      if (!canvas) return null;
+      try {
+        if (!canvas) return null;
 
-      if (!canvas.width || !canvas.height) {
-        canvas.width = canvas.offsetWidth;
-        canvas.height = canvas.offsetHeight;
+        if (!canvas.width || !canvas.height) {
+          canvas.width = canvas.offsetWidth;
+          canvas.height = canvas.offsetHeight;
+        }
+
+        ctx = ctx || canvas.getContext('2d');
+        if (!ctx) return null;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const values =
+          source.getFrequencies?.('voice')?.values || new Float32Array([0]);
+
+        WavRenderer.drawBars(canvas, ctx, values, color, 10, 0, 8);
+        return ctx;
+      } catch (error) {
+        console.error('Audio visualization error:', error);
+        return null;
       }
-
-      ctx = ctx || canvas.getContext('2d');
-      if (!ctx) return null;
-
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      const values =
-        source.getFrequencies?.('voice')?.values || new Float32Array([0]);
-
-      WavRenderer.drawBars(canvas, ctx, values, color, 10, 0, 8);
-      return ctx;
     }
 
     function render() {
@@ -57,7 +68,7 @@ export function AudioVisualizer({ recorder, player }: AudioVisualizerProps) {
         renderContext.clientCanvas,
         renderContext.clientCtx,
         renderContext.wavRecorder.recording ? renderContext.wavRecorder : {},
-        '#0099ff'
+        clientColor
       );
 
       renderContext.serverCtx = renderCanvas(
@@ -66,18 +77,24 @@ export function AudioVisualizer({ recorder, player }: AudioVisualizerProps) {
         renderContext.wavStreamPlayer.analyser
           ? renderContext.wavStreamPlayer
           : {},
-        '#009900'
+        serverColor
       );
 
       window.requestAnimationFrame(render);
     }
 
     render();
+
     return () => {
       isLoaded = false;
     };
-  }, [recorder, player]);
+  }, [recorder, player, clientColor, serverColor]);
 
+  if (!recorder || !player) {
+    return null;
+  }
+
+  // Exact structure from ConsolePageOG
   return (
     <div className="visualization">
       <div className="visualization-entry client">

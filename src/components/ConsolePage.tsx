@@ -7,27 +7,51 @@ import { useAudioProcessor } from '@/hooks/useAudioProcessor';
 import { formatTime } from '@/utils/timeUtils';
 import { ConversationDisplay } from './console/ConversationDisplay';
 import { EventLog } from './console/EventLog';
-import { AudioVisualizer } from './console/AudioVisualizer';
-import TrialsDisplay from './TrialsDisplay';
-import ReportModal from './ReportModal';
 import { Button } from './button/Button';
-import { Toggle } from './toggle/Toggle';
-import type { RealtimeEvent } from '@/types/console';
-import type { StudyInfo } from '@/lib/ctg-tool';
-import type { TrialsReport } from '@/lib/report-handler';
 import { reportHandler } from '@/lib/report-handler';
+import { ConsoleLayout } from './console/ConsoleLayout';
+import { ControlPanel } from './console/ControlPanel';
+import { SidePanel } from './console/SidePanel';
+import ReportModal from './ReportModal'; // Fix import
+import type { ConsoleProps } from '@/types/console';
+import { useEventHandling } from '@/hooks/useEventHandling';
+import { useConnectionManager } from '@/hooks/useConnectionManager';
 import './ConsolePage.scss';
 
-/**
- * The main component for the console page.
- * This component handles the connection to the OpenAI Realtime API,
- * manages the state of the conversation, and renders the UI.
- */
-export function ConsolePage() {
-  // API and Audio Processing hooks
-  const { apiKey, clientRef, isConnected, setIsConnected, resetAPIKey } =
-    useOpenAIClient();
+const LOCAL_RELAY_SERVER_URL =
+  import.meta.env.REACT_APP_LOCAL_RELAY_SERVER_URL || '';
 
+export function ConsolePage({
+  apiKey: initialApiKey,
+  onResetApiKey,
+}: ConsoleProps) {
+  // Initialize client and its state
+  const {
+    clientRef,
+    isConnected,
+    setIsConnected,
+    resetAPIKey: defaultResetApiKey,
+    addTools,
+    setupEventHandlers,
+    memoryKv,
+    trials,
+    isLoadingTrials,
+    finalReport,
+    setFinalReport,
+    isReportModalOpen,
+    setIsReportModalOpen,
+  } = useOpenAIClient(initialApiKey);
+
+  // Event handling
+  const {
+    realtimeEvents,
+    expandedEvents,
+    handleEventClick,
+    addEvent,
+    setRealtimeEvents,
+  } = useEventHandling();
+
+  // Initialize audio processor
   const {
     wavRecorderRef,
     wavStreamPlayerRef,
@@ -38,41 +62,29 @@ export function ConsolePage() {
     changeTurnEndType,
     setupAudio,
     cleanupAudio,
-  } = useAudioProcessor();
+  } = useAudioProcessor({
+    clientRef,
+    onStartRecording: () => {
+      addEvent({
+        source: 'client',
+        event: { type: 'audio.recording.start' },
+      });
+    },
+    onStopRecording: () => {
+      addEvent({
+        source: 'client',
+        event: { type: 'audio.recording.stop' },
+      });
+    },
+  });
 
-  // Conversation state
+  // Conversation and event state - managed locally as they're UI-specific
   const [items, setItems] = useState<ItemType[]>([]);
-  const [memoryKv, setMemoryKv] = useState<{ [key: string]: any }>({});
 
-  // Event logging state
-  const [realtimeEvents, setRealtimeEvents] = useState<RealtimeEvent[]>([]);
-  const [expandedEvents, setExpandedEvents] = useState<{
-    [key: string]: boolean;
-  }>({});
+  // References
   const startTimeRef = useRef<string>(new Date().toISOString());
-
-  // UI References for event log scrolling
-  const eventsScrollHeightRef = useRef(0);
   const eventsScrollRef = useRef<HTMLDivElement>(null);
-
-  // Trials and report state
-  const [trials, setTrials] = useState<StudyInfo[]>([]);
-  const [isLoadingTrials, setIsLoadingTrials] = useState(false);
-  const [finalReport, setFinalReport] = useState<TrialsReport | null>(null);
-  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
-
-  // Event handlers
-  const handleEventClick = useCallback((eventId: string) => {
-    setExpandedEvents(expanded => {
-      const newExpanded = { ...expanded };
-      if (newExpanded[eventId]) {
-        delete newExpanded[eventId];
-      } else {
-        newExpanded[eventId] = true;
-      }
-      return newExpanded;
-    });
-  }, []);
+  const eventsScrollHeightRef = useRef(0);
 
   const handleDeleteConversationItem = useCallback(
     async (id: string) => {
@@ -82,6 +94,31 @@ export function ConsolePage() {
     [clientRef]
   );
 
+  // Move connection logic to custom hook
+  const { connectConversation, disconnectConversation, fullCleanup } =
+    useConnectionManager({
+      clientRef,
+      setIsConnected,
+      setRealtimeEvents,
+      setItems,
+      setFinalReport,
+      startTimeRef,
+      wavStreamPlayerRef,
+      addTools,
+      setupEventHandlers,
+      setupAudio,
+      cleanupAudio,
+    });
+
+  // Add missing state initializations
+  useEffect(() => {
+    if (clientRef.current) {
+      setItems(clientRef.current.conversation.getItems());
+      startTimeRef.current = new Date().toISOString();
+    }
+  }, [clientRef.current]);
+
+  // Update report generation to include all deps
   const handleManualReportGeneration = useCallback(async () => {
     if (!reportHandler.getLatestTrials().length) {
       console.warn('No trials available for report generation');
@@ -96,43 +133,9 @@ export function ConsolePage() {
     } catch (error) {
       console.error('Error during report generation:', error);
     }
-  }, [memoryKv]);
+  }, [memoryKv, disconnectConversation, setFinalReport, setIsReportModalOpen]);
 
-  // Connection management
-  const connectConversation = useCallback(async () => {
-    if (!clientRef.current) return;
-
-    startTimeRef.current = new Date().toISOString();
-    setIsConnected(true);
-    setRealtimeEvents([]);
-    setItems(clientRef.current.conversation.getItems());
-
-    await setupAudio();
-    await clientRef.current.connect();
-    clientRef.current.createResponse();
-  }, [clientRef, setupAudio, setIsConnected]);
-
-  const disconnectConversation = useCallback(async () => {
-    if (!clientRef.current) return;
-
-    setIsConnected(false);
-    setRealtimeEvents([]);
-    setItems([]);
-    setMemoryKv({});
-    setTrials([]);
-    setIsLoadingTrials(false);
-
-    clientRef.current?.disconnect();
-    await cleanupAudio();
-  }, [clientRef, cleanupAudio]);
-
-  const fullCleanup = useCallback(async () => {
-    await disconnectConversation();
-    setFinalReport(null);
-    reportHandler.clear();
-  }, [disconnectConversation]);
-
-  // Effect for auto-scrolling events
+  // Auto-scroll effect for events
   useEffect(() => {
     if (!eventsScrollRef.current) return;
     const eventsEl = eventsScrollRef.current;
@@ -143,107 +146,80 @@ export function ConsolePage() {
     }
   }, [realtimeEvents]);
 
-  return (
-    <div data-component="ConsolePage">
-      <div className="content-top">
-        <div className="content-title">
-          <span>Clinical Trials Research Assistant</span>
-        </div>
-        <div className="content-api-key">
-          {!LOCAL_RELAY_SERVER_URL && (
-            <Button buttonStyle="flush" onClick={resetAPIKey} />
-          )}
-        </div>
-      </div>
-      <div className="content-main">
-        <div className="content-logs">
-          <div className="content-block events">
-            <AudioVisualizer
-              recorder={wavRecorderRef.current}
-              player={wavStreamPlayerRef.current}
-            />
-            <EventLog
-              events={realtimeEvents}
-              expandedEvents={expandedEvents}
-              onEventClick={handleEventClick}
-              formatTime={time => formatTime(time, startTimeRef.current)}
-            />
-          </div>
-          <ConversationDisplay
-            items={items}
-            onDeleteItem={handleDeleteConversationItem}
-          />
-          <div className="content-actions">
-            <Toggle
-              defaultValue={false}
-              labels={['manual', 'vad']}
-              values={['none', 'server_vad']}
-              onChange={(_, value) =>
-                changeTurnEndType(value, clientRef.current!)
-              }
-            />
-            <div className="spacer" />
-            {isConnected && canPushToTalk && (
-              <Button
-                label={isRecording ? 'release to send' : 'push to talk'}
-                buttonStyle={isRecording ? 'alert' : 'regular'}
-                disabled={!isConnected || !canPushToTalk}
-                onMouseDown={() => startRecording(clientRef.current!)}
-                onMouseUp={() => stopRecording(clientRef.current!)}
-              />
-            )}
-            <div className="spacer" />
-            <Button
-              label={isConnected ? 'disconnect & reset' : 'connect'}
-              iconPosition={isConnected ? 'end' : 'start'}
-              buttonStyle={isConnected ? 'regular' : 'action'}
-              onClick={isConnected ? fullCleanup : connectConversation}
-            />
-            <div className="spacer" />
-            {isConnected && (
-              <Button
-                label="End Chat & Generate Report"
-                buttonStyle="action"
-                onClick={handleManualReportGeneration}
-                disabled={!reportHandler.getLatestTrials().length}
-              />
-            )}
-          </div>
-        </div>
-        <div className="content-right">
-          <div className="content-block kv z-[1]">
-            <div className="content-block-title">user information</div>
-            <div className="content-block-body content-kv">
-              {JSON.stringify(memoryKv, null, 2)}
-            </div>
-          </div>
-          <div className="content-block trials bg-zinc-50 z-[1]">
-            <div className="content-block-title">clinical trials</div>
-            <div className="content-block-body mt-12">
-              <TrialsDisplay trials={trials} isLoading={isLoadingTrials} />
-            </div>
-          </div>
-        </div>
-      </div>
+  // Use provided reset handler if available
+  const handleResetApiKey = useCallback(() => {
+    if (onResetApiKey) {
+      onResetApiKey();
+    } else {
+      defaultResetApiKey();
+    }
+  }, [onResetApiKey, defaultResetApiKey]);
 
-      {finalReport && (
-        <div className="report-status">
-          <span>
-            Report generated at{' '}
-            {new Date(finalReport.timestamp).toLocaleTimeString()}
-          </span>
-        </div>
-      )}
+  const header = (
+    <>
+      <div className="content-title">
+        <span>Clinical Trials Research Assistant</span>
+      </div>
+      <div className="content-api-key">
+        {!LOCAL_RELAY_SERVER_URL && (
+          <Button buttonStyle="flush" onClick={handleResetApiKey} />
+        )}
+      </div>
+    </>
+  );
 
-      <ReportModal
-        report={finalReport}
-        isOpen={isReportModalOpen}
-        onClose={() => setIsReportModalOpen(false)}
+  const mainContent = (
+    <>
+      <EventLog
+        events={realtimeEvents}
+        expandedEvents={expandedEvents}
+        onEventClick={handleEventClick}
+        formatTime={timestamp => formatTime(timestamp, startTimeRef.current)}
+        wavRecorder={wavRecorderRef.current}
+        wavStreamPlayer={wavStreamPlayerRef.current}
+        eventsScrollRef={eventsScrollRef}
       />
-    </div>
+      <ConversationDisplay
+        items={items}
+        onDeleteItem={handleDeleteConversationItem}
+      />
+      <ControlPanel
+        isConnected={isConnected}
+        isRecording={isRecording}
+        canPushToTalk={canPushToTalk}
+        startRecording={startRecording}
+        stopRecording={stopRecording}
+        changeTurnEndType={changeTurnEndType}
+        onConnect={connectConversation}
+        onDisconnect={fullCleanup}
+        onGenerateReport={handleManualReportGeneration}
+        hasTrials={!!reportHandler.getLatestTrials().length}
+      />
+    </>
+  );
+
+  const sidePanel = (
+    <SidePanel
+      memoryKv={memoryKv}
+      trials={trials}
+      isLoadingTrials={isLoadingTrials}
+    />
+  );
+
+  const footer = finalReport && (
+    <ReportModal
+      report={finalReport}
+      isOpen={isReportModalOpen}
+      onClose={() => setIsReportModalOpen(false)}
+    />
+  );
+
+  return (
+    <ConsoleLayout
+      header={header}
+      mainContent={mainContent}
+      sidePanel={sidePanel}
+      footer={footer}
+    />
   );
 }
-
-// Constant from original file
-const LOCAL_RELAY_SERVER_URL: string =
-  import.meta.env.REACT_APP_LOCAL_RELAY_SERVER_URL || '';

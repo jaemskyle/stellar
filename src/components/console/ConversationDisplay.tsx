@@ -1,20 +1,28 @@
 // src/components/console/ConversationDisplay.tsx
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import type { ItemType } from '@openai/realtime-api-beta/dist/lib/client.js';
 
 interface ConversationDisplayProps {
   items: ItemType[];
   onDeleteItem: (id: string) => void;
+  className?: string;
 }
 
 export function ConversationDisplay({
   items,
   onDeleteItem,
+  className = '',
 }: ConversationDisplayProps) {
-  // Direct port of the conversation rendering logic from ConsolePage
+  // Auto-scroll effect - exact port from ConsolePageOG
+  useEffect(() => {
+    document.querySelectorAll('[data-conversation-content]').forEach(el => {
+      (el as HTMLDivElement).scrollTop = el.scrollHeight;
+    });
+  }, [items]);
+
   return (
-    <div className="content-block conversation">
+    <div className={`content-block conversation ${className}`}>
       <div className="content-block-title">conversation</div>
       <div className="content-block-body" data-conversation-content>
         {!items.length && `awaiting connection...`}
@@ -35,17 +43,20 @@ export function ConversationDisplay({
               </div>
             </div>
             <div className={`speaker-content`}>
-              {/* tool response */}
+              {/* tool response - exact match to ConsolePageOG */}
               {conversationItem.type === 'function_call_output' && (
                 <div>{conversationItem.formatted.output}</div>
               )}
-              {/* tool call */}
+
+              {/* tool call - exact match */}
               {!!conversationItem.formatted.tool && (
                 <div>
                   {conversationItem.formatted.tool.name}(
                   {conversationItem.formatted.tool.arguments})
                 </div>
               )}
+
+              {/* user message - exact match */}
               {!conversationItem.formatted.tool &&
                 conversationItem.role === 'user' && (
                   <div>
@@ -55,6 +66,8 @@ export function ConversationDisplay({
                         : conversationItem.formatted.text || '(item sent)')}
                   </div>
                 )}
+
+              {/* assistant message - exact match */}
               {!conversationItem.formatted.tool &&
                 conversationItem.role === 'assistant' && (
                   <div>
@@ -63,6 +76,8 @@ export function ConversationDisplay({
                       '(truncated)'}
                   </div>
                 )}
+
+              {/* audio playback - exact match */}
               {conversationItem.formatted.file && (
                 <audio src={conversationItem.formatted.file.url} controls />
               )}
