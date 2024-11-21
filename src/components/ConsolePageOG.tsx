@@ -1,5 +1,5 @@
 /**
- * src/components/ConsolePage.tsx - ConsolePage Component
+ * src/components/ConsolePageOG.tsx - Original ConsolePage Component
  *
  * This component handles the connection to the OpenAI Realtime API,
  * manages conversation state, and renders the clinical trials research UI.
@@ -35,7 +35,7 @@ import {
 } from '../lib/report-handler';
 
 // Components
-import TrialsDisplay from '../components/TrialsDisplay';
+import TrialsDisplay from './TrialsDisplay';
 import ReportModal from '@/components/ReportModal';
 import { Button } from '@/components/button/Button';
 import { Toggle } from '@/components/toggle/Toggle';
@@ -62,7 +62,7 @@ interface RealtimeEvent {
  * This component handles the connection to the OpenAI Realtime API,
  * manages the state of the conversation, and renders the UI.
  */
-export function ConsolePage() {
+export function ConsolePageOG() {
   /**
    * State Management Section
    * Organized by functionality for better code organization
