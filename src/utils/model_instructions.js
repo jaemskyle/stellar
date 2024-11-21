@@ -1,4 +1,4 @@
-/* src/utils/conversation_config.js */
+/* src/utils/model_instructions.js */
 export const instructions = `System settings:
 Tool use: enabled.
 
