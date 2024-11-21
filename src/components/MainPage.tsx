@@ -1,8 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+// src/components/MainPage.tsx
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { RealtimeClient } from '@openai/realtime-api-beta';
 import type { ItemType } from '@openai/realtime-api-beta/dist/lib/client.js';
-import { Mic, Eye, EyeOff, PhoneOff, MicOff } from 'lucide-react';
+import { Mic, Eye, EyeOff, PhoneOff, MicOff, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -41,8 +42,6 @@ interface RealtimeEvent {
 export default function MainPage() {
   // Screen Management from App.tsx
   const [currentScreen, setCurrentScreen] = useState('landing');
-  const [showConversation, setShowConversation] = useState(false);
-  const [activeTab, setActiveTab] = useState('results');
 
   // Core State from ConsolePageOG
   const [apiKey, setApiKey] = useState<string>('');
@@ -54,9 +53,11 @@ export default function MainPage() {
   const [items, setItems] = useState<ItemType[]>([]);
   const [memoryKv, setMemoryKv] = useState<{ [key: string]: any }>({});
   const [realtimeEvents, setRealtimeEvents] = useState<RealtimeEvent[]>([]);
-  const [expandedEvents, setExpandedEvents] = useState<{
-    [key: string]: boolean;
-  }>({});
+
+  // UI State
+  const [showConversation, setShowConversation] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [activeTab, setActiveTab] = useState('results');
 
   // Audio State and Refs
   const wavRecorderRef = useRef<WavRecorder>(
@@ -80,26 +81,10 @@ export default function MainPage() {
   const eventsScrollRef = useRef<HTMLDivElement>(null);
   const eventsScrollHeightRef = useRef(0);
 
-  // Utility Functions
-  const formatTime = useCallback((timestamp: string) => {
-    const startTime = startTimeRef.current;
-    const t0 = new Date(startTime).valueOf();
-    const t1 = new Date(timestamp).valueOf();
-    const delta = t1 - t0;
-    const hs = Math.floor(delta / 10) % 100;
-    const s = Math.floor(delta / 1000) % 60;
-    const m = Math.floor(delta / 60_000) % 60;
-    const pad = (n: number) => {
-      let s = n + '';
-      while (s.length < 2) {
-        s = '0' + s;
-      }
-      return s;
-    };
-    return `${pad(m)}:${pad(s)}.${pad(hs)}`;
-  }, []);
-
-  // API Key Management
+  /**
+   * When you click the API key
+   * Allows manual reset of the API key
+   */
   const resetAPIKey = useCallback(() => {
     const apiKey = prompt('OpenAI API Key');
     if (apiKey !== null) {
@@ -113,13 +98,15 @@ export default function MainPage() {
   // components...
   // ... continuing from Part 1
 
-  // Tool Management
+  /**
+   * Tool Management
+   * Handles setup and configuration of available tools
+   */
   const addTools = useCallback(() => {
     if (!clientRef.current) return;
 
     const client = clientRef.current;
 
-    // Memory Tool
     client.addTool(
       {
         name: 'set_memory',
@@ -130,7 +117,7 @@ export default function MainPage() {
             key: {
               type: 'string',
               description:
-                'The key of the memory value. Always use lowercase and underscores.',
+                'The key of the memory value. Always use lowercase and underscores, no other characters.',
             },
             value: {
               type: 'string',
@@ -150,14 +137,16 @@ export default function MainPage() {
       }
     );
 
-    // Clinical Trials Tool
     client.addTool(CTG_TOOL_DEFINITION, async (params: any) => {
       try {
         setIsLoadingTrials(true);
         setTrials([]);
 
         const trials = await getClinicalTrials(params);
+
+        // Update latest trials in report handler
         reportHandler.updateLatestTrials(trials, params);
+
         setTrials(trials);
         setIsLoadingTrials(false);
 
@@ -183,7 +172,7 @@ export default function MainPage() {
       }
     });
 
-    // Report Generation Tool
+    // Add report generation tool
     client.addTool(REPORT_TOOL_DEFINITION, async (params: any) => {
       try {
         const report = reportHandler.generateReport(
@@ -194,7 +183,7 @@ export default function MainPage() {
         );
 
         setFinalReport(report);
-        setIsReportModalOpen(true);
+        setIsReportModalOpen(true); // Open modal when assistant generates report
 
         return {
           status: 'success',
@@ -211,42 +200,77 @@ export default function MainPage() {
       }
     });
 
+    // Update session after adding tools
     client.updateSession();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientRef]);
 
-  // Connection Management
+  /**
+   * Connection Management
+   * Connect to conversation:
+   * Handles establishing and terminating connections
+   * WavRecorder takes speech input, WavStreamPlayer output, client is API client
+   */
   const connectConversation = useCallback(async () => {
+    console.log('jkd connectConversation', '==clientRef', clientRef);
+    console.log(
+      'jb === !clientRef.current gets resolved to',
+      !clientRef.current
+    );
     if (!clientRef.current) return;
 
+    // if clientRef.current.tools object is empty trigger addTools
     const toolsList = Object.keys(clientRef.current.tools);
     const client = clientRef.current;
 
     if (toolsList.length === 0) {
       addTools();
+
+      // Update session after adding tools
       client.updateSession();
     }
 
     const wavRecorder = wavRecorderRef.current;
     const wavStreamPlayer = wavStreamPlayerRef.current;
 
+    // Set state variables
     startTimeRef.current = new Date().toISOString();
     setIsConnected(true);
     setRealtimeEvents([]);
     setItems(client.conversation.getItems());
 
+    // Connect to microphone
     await wavRecorder.begin();
-    await wavStreamPlayer.connect();
-    await client.connect();
 
+    // Connect to audio output
+    await wavStreamPlayer.connect();
+
+    // Connect to realtime API
+    console.log('jb connectConversation', '==client.connect()');
+    await client.connect();
+    console.log('jb connectConversation', '==client.connect() done');
+    // client.sendUserMessageContent([
+    //   {
+    //     type: `input_text`,
+    //     text: `Hello! I'm looking for clinical trials that might be suitable for me.`,
+    //   },
+    // ]);
+    console.log('Forcing model response generation');
     client.createResponse();
+    console.log('Model response creation complete');
 
     if (client.getTurnDetectionType() === 'server_vad') {
       await wavRecorder.record(data => client.appendInputAudio(data.mono));
     }
 
     console.log('Connected to conversation');
-  }, [addTools]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientRef]);
 
+  /**
+   * Disconnect and reset conversation state
+   * Cleans up all connections and resets state
+   */
   const disconnectConversation = useCallback(async () => {
     if (!clientRef.current) return;
 
@@ -256,42 +280,54 @@ export default function MainPage() {
     setMemoryKv({});
     setTrials([]);
     setIsLoadingTrials(false);
+    // setFinalReport(null);
+    // reportHandler.clear();
 
     const client = clientRef.current;
-    client?.disconnect();
+    client?.disconnect(); // Safely disconnect if client exists
 
     const wavRecorder = wavRecorderRef.current;
     await wavRecorder.end();
 
     const wavStreamPlayer = wavStreamPlayerRef.current;
     wavStreamPlayer.interrupt();
-  }, []);
+  }, [clientRef]);
+  // }, [clientRef, wavRecorderRef, wavStreamPlayerRef]);
+  // }, [apiKey, clientRef, wavRecorderRef, wavStreamPlayerRef]);
 
+  /**
+   * Full cleanup including report data
+   * Use this for complete reset of the application state
+   */
   const fullCleanup = useCallback(async () => {
     await disconnectConversation();
     setFinalReport(null);
     reportHandler.clear();
   }, [disconnectConversation]);
 
-  // Audio Control Functions
-  const startRecording = useCallback(async () => {
+  /**
+   * Audio Management
+   * Handles all audio recording and playback functionality
+   */
+  const startRecording = async () => {
     if (!clientRef.current) return;
 
     setIsRecording(true);
     const client = clientRef.current;
     const wavRecorder = wavRecorderRef.current;
     const wavStreamPlayer = wavStreamPlayerRef.current;
-
     const trackSampleOffset = wavStreamPlayer.interrupt();
     if (trackSampleOffset?.trackId) {
       const { trackId, offset } = trackSampleOffset;
       client.cancelResponse(trackId, offset);
     }
-
     await wavRecorder.record(data => client.appendInputAudio(data.mono));
-  }, []);
+  };
 
-  const stopRecording = useCallback(async () => {
+  /**
+   * In push-to-talk mode, stop recording
+   */
+  const stopRecording = async () => {
     if (!clientRef.current) return;
 
     setIsRecording(false);
@@ -299,30 +335,33 @@ export default function MainPage() {
     const wavRecorder = wavRecorderRef.current;
     await wavRecorder.pause();
     client.createResponse();
-  }, []);
+  };
 
-  const changeTurnEndType = useCallback(async (value: string) => {
+  /**
+   * Switch between Manual <> VAD mode for communication
+   * Handles turn detection type changes
+   */
+  const changeTurnEndType = async (value: string) => {
     if (!clientRef.current) return;
 
     const client = clientRef.current;
     const wavRecorder = wavRecorderRef.current;
-
     if (value === 'none' && wavRecorder.getStatus() === 'recording') {
       await wavRecorder.pause();
     }
-
     client.updateSession({
       turn_detection: value === 'none' ? null : { type: 'server_vad' },
     });
-
     if (value === 'server_vad' && client.isConnected()) {
       await wavRecorder.record(data => client.appendInputAudio(data.mono));
     }
-
     setCanPushToTalk(value === 'none');
-  }, []);
+  };
 
-  // Report Management
+  /**
+   * Report Management
+   * Handles manual report generation and conversation end
+   */
   const handleManualReportGeneration = useCallback(async () => {
     if (!reportHandler.getLatestTrials().length) {
       console.warn('No trials available for report generation');
@@ -330,35 +369,66 @@ export default function MainPage() {
     }
 
     try {
-      const report = reportHandler.generateReport(memoryKv, 'user', true);
+      // Generate report first
+      const report = reportHandler.generateReport(
+        memoryKv,
+        'user',
+        true // mark as complete since user is ending conversation
+      );
       setFinalReport(report);
-      setIsReportModalOpen(true);
+      console.log('Report set:', report);
+      setIsReportModalOpen(true); // Open modal after report generation
+      console.log('Report modal opened');
+
+      // Then disconnect conversation
       await disconnectConversation();
+
       console.log('Report generated and conversation ended by user');
     } catch (error) {
       console.error('Error during report generation:', error);
+      // Optionally show error to user
     }
   }, [memoryKv, disconnectConversation]);
 
-  // Conversation Management
-  const deleteConversationItem = useCallback(async (id: string) => {
-    if (!clientRef.current) return;
-    clientRef.current.deleteItem(id);
-  }, []);
+  /**
+   * Delete a conversation item by its ID.
+   *
+   * @param id - The ID of the item to delete.
+   */
+  const deleteConversationItem = useCallback(
+    async (id: string) => {
+      if (!clientRef.current) return;
+
+      const client = clientRef.current;
+      client.deleteItem(id);
+    },
+    [clientRef]
+  );
 
   // Continue with Part 2b for Effects and UI Components...
   // ... continuing from Part 2a
 
-  // Effects
-  // API Key Initialization
+  /**
+   * Effect Hooks
+   * Organized by initialization order and dependencies
+   */
+
+  /**
+   * API and Client Initialization
+   * Ask user for API Key.
+   * If we're using the local relay server, we don't need this.
+   */
+  // Fetch API key on component mount
   useEffect(() => {
     async function fetchConfig() {
       try {
+        console.log('Fetching configuration from /api/config');
         const response = await fetch('/api/config');
         const data = await response.json();
         if (!data.apiKey) {
           throw new Error('No API key found in configuration');
         }
+        console.log('Configuration data:', data);
         setApiKey(data.apiKey);
       } catch (error) {
         console.error('Error fetching config:', error);
@@ -369,6 +439,7 @@ export default function MainPage() {
 
   useEffect(() => {
     if (apiKey) {
+      console.log('Initializing RealtimeClient with API key:', apiKey);
       clientRef.current = new RealtimeClient(
         LOCAL_RELAY_SERVER_URL
           ? { url: LOCAL_RELAY_SERVER_URL }
@@ -380,23 +451,39 @@ export default function MainPage() {
     }
   }, [apiKey]);
 
-  // Tool Setup
+  /**
+   * Tool and Core Setup
+   */
   useEffect(() => {
     addTools();
-  }, [addTools]);
+  }, [addTools]); // ? jb
+  // }, [apiKey, addTools]); // ? jkd
 
-  // RealtimeClient Setup
+  /**
+   * Core RealtimeClient and audio capture setup
+   * Set all of our instructions, tools, events and more
+   */
   useEffect(() => {
+    console.log('Starting RealtimeClient setup and connection to conversation');
     if (!clientRef.current) return;
 
+    // Get refs
     const client = clientRef.current;
     const wavStreamPlayer = wavStreamPlayerRef.current;
 
     // Initialize session settings
-    client.updateSession({ instructions });
+    // Set instructions
+    console.log('Setting instructions and transcription model:', instructions, {
+      model: 'whisper-1',
+    });
+
+    client.updateSession({ instructions: instructions });
+    // Set transcription, otherwise we don't get user transcriptions back
     client.updateSession({ input_audio_transcription: { model: 'whisper-1' } });
 
-    // Event handlers
+    // Event handlers setup
+    // handle realtime events from client + server for event logging
+    console.log('Setting up event listeners');
     const eventHandlers = {
       'realtime.event': (realtimeEvent: RealtimeEvent) => {
         setRealtimeEvents(events => {
@@ -435,6 +522,7 @@ export default function MainPage() {
       },
     };
 
+    // Attach event handlers
     Object.entries(eventHandlers).forEach(([event, handler]) => {
       client.on(event, handler);
     });
@@ -442,11 +530,14 @@ export default function MainPage() {
     setItems(client.conversation.getItems());
 
     return () => {
-      client.reset();
+      client.reset(); // cleanup; resets to defaults
     };
-  }, [apiKey]);
+  }, [apiKey, clientRef]);
 
-  // Auto-scroll Effects
+  /**
+   * UI Effects
+   * Auto-scroll the event logs
+   */
   useEffect(() => {
     if (!eventsScrollRef.current) return;
     const eventsEl = eventsScrollRef.current;
@@ -512,6 +603,65 @@ export default function MainPage() {
       }
     };
   }, [isRecording]);
+
+  // Settings Menu Component
+  const SettingsMenu = () => (
+    <div className="absolute top-4 right-4 z-10 bg-white rounded-lg shadow-lg p-4">
+      <h3 className="font-semibold mb-2">Settings</h3>
+      <div className="space-y-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={resetAPIKey}
+          className="w-full"
+        >
+          Reset API Key
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() =>
+            changeTurnEndType(canPushToTalk ? 'server_vad' : 'none')
+          }
+          className="w-full"
+        >
+          {canPushToTalk ? 'Switch to VAD' : 'Switch to Push-to-Talk'}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={fullCleanup}
+          className="w-full text-red-600"
+        >
+          Reset Everything
+        </Button>
+      </div>
+    </div>
+  );
+
+  // Update VoiceChatScreen to include conversation item deletion
+  const ConversationItem = ({ item }: { item: ItemType }) => (
+    <div className="relative group">
+      <div
+        className={`mb-2 ${
+          item.role === 'system'
+            ? 'text-gray-500'
+            : item.role === 'assistant'
+              ? 'text-blue-600'
+              : 'text-green-600'
+        }`}
+      >
+        <strong>{item.role}:</strong>{' '}
+        {item.formatted.transcript || item.formatted.text}
+        <button
+          onClick={() => deleteConversationItem(item.id)}
+          className="absolute -right-4 top-0 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-600"
+        >
+          ×
+        </button>
+      </div>
+    </div>
+  );
 
   // UI Components
   const LandingScreen = () => (
@@ -678,7 +828,18 @@ export default function MainPage() {
 
   // Main Render
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white relative">
+      <Button
+        variant="ghost"
+        size="icon"
+        className="absolute top-4 right-4 z-10"
+        onClick={() => setShowSettings(!showSettings)}
+      >
+        <Settings className="w-5 h-5" />
+      </Button>
+
+      {showSettings && <SettingsMenu />}
+
       {currentScreen === 'landing' && <LandingScreen />}
       {currentScreen === 'voiceChat' && <VoiceChatScreen />}
       {currentScreen === 'results' && <ResultsScreen />}
