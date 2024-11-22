@@ -40,6 +40,13 @@ interface RealtimeEvent {
 }
 
 export default function MainPage() {
+  console.log('MainPage component mounted'); // Add this
+  // Add a visible indicator
+  useEffect(() => {
+    console.log('MainPage useEffect running');
+  }, []);
+
+  /* ---------------------------------------------------------------- */
   // Screen Management from App.tsx
   const [currentScreen, setCurrentScreen] = useState('landing');
 
@@ -59,7 +66,12 @@ export default function MainPage() {
   const [showSettings, setShowSettings] = useState(false);
   const [activeTab, setActiveTab] = useState('results');
 
-  // Audio State and Refs
+  /**
+   * Instantiate:
+   * - WavRecorder (speech input)
+   * - WavStreamPlayer (speech output)
+   * - RealtimeClient (API client)
+   */
   const wavRecorderRef = useRef<WavRecorder>(
     new WavRecorder({ sampleRate: 24000 })
   );
@@ -565,7 +577,7 @@ export default function MainPage() {
     let isLoaded = true;
 
     const animate = () => {
-      if (!isLoaded || !ctx) return;
+      if (!isLoaded || !ctx) return; // ? Should this be removed?
 
       const width = canvas.width;
       const height = canvas.height;
@@ -583,15 +595,35 @@ export default function MainPage() {
         const time = Date.now() / 1000;
         const numWaves = 3;
         for (let i = 0; i < numWaves; i++) {
-          const radius = 50 + Math.sin(time * 2 + i) * 10;
+          // Use audio data from WavRecorder to influence the wave radius
+          // Get real audio data or fallback to animation
+          const audioData =
+            wavRecorderRef.current.getFrequencies?.('voice')?.values;
+          const audioInfluence = audioData
+            ? Array.from(audioData).reduce((sum, val) => sum + val, 0) /
+              audioData.length
+            : Math.sin(time * 2 + i);
+
+          const radius = 50 + audioInfluence * 10;
+
           ctx.beginPath();
           ctx.arc(width / 2, height / 2, radius, 0, 2 * Math.PI);
           ctx.strokeStyle = `rgba(100, 100, 100, ${0.3 - i * 0.1})`;
           ctx.stroke();
         }
+
+        // Add a subtle pulse effect
+        const pulseRadius = 50 + Math.sin(time * 4) * 3;
+        ctx.beginPath();
+        ctx.arc(width / 2, height / 2, pulseRadius, 0, 2 * Math.PI);
+        ctx.strokeStyle = 'rgba(0, 153, 255, 0.2)';
+        ctx.lineWidth = 3;
+        ctx.stroke();
       }
 
-      animationFrameRef.current = requestAnimationFrame(animate);
+      if (isLoaded) {
+        animationFrameRef.current = requestAnimationFrame(animate);
+      }
     };
 
     animate();
@@ -603,6 +635,14 @@ export default function MainPage() {
       }
     };
   }, [isRecording]);
+
+  useEffect(() => {
+    console.log('Current screen:', currentScreen); // Add logging
+  }, [currentScreen]);
+
+  /* ---------------------------------------------------------------- */
+  /* ---------------------------------------------------------------- */
+  /* ---------------------------------------------------------------- */
 
   // Settings Menu Component
   const SettingsMenu = () => (
@@ -639,7 +679,58 @@ export default function MainPage() {
     </div>
   );
 
-  // Update VoiceChatScreen to include conversation item deletion
+  /* ---------------------------------------------------------------- */
+
+  const handleStart = async () => {
+    console.log('Start button clicked - pre-try');
+    try {
+      console.log('clientRef current state:', clientRef.current); // Add this
+      console.log('apiKey state:', apiKey); // Add this
+      await connectConversation();
+      console.log('Connection successful');
+      setCurrentScreen('voiceChat');
+    } catch (error) {
+      console.error('Connection failed:', error);
+      // Add more error details
+      console.error('Error details:', {
+        clientRef: clientRef.current,
+        apiKey,
+        isConnected,
+      });
+    }
+  };
+
+  // UI Components
+  const LandingScreen = () => (
+    <div className="flex flex-col items-center justify-center min-h-screen p-6 text-center">
+      <h1 className="text-5xl font-bold leading-tight mb-6">
+        Find the Right Clinical Trial, Anywhere, Anytime
+      </h1>
+      <p className="text-lg text-gray-600 mb-16 max-w-2xl">
+        Search for trials in your language, tailored to your knowledge level.
+        Simplifying access for patients and caregivers worldwide
+      </p>
+      <div className="flex flex-col items-center">
+        <p className="text-sm mb-4">Tap to start</p>
+        <button
+          // variant="outline"
+          // size="icon"
+          className="w-20 h-20 rounded-full bg-black hover:bg-gray-800 transition-colors flex items-center justify-center"
+          onClick={() => {
+            console.log('Button clicked - immediate feedback');
+            handleStart();
+          }}
+          // onClick={async () => {
+          //   await connectConversation();
+          //   setCurrentScreen('voiceChat');
+          // }}
+        >
+          <Mic className="w-8 h-8 text-white" />
+        </button>
+      </div>
+    </div>
+  );
+
   const ConversationItem = ({ item }: { item: ItemType }) => (
     <div className="relative group">
       <div
@@ -663,32 +754,6 @@ export default function MainPage() {
     </div>
   );
 
-  // UI Components
-  const LandingScreen = () => (
-    <div className="flex flex-col items-center justify-center min-h-screen p-6 text-center">
-      <h1 className="text-5xl font-bold leading-tight mb-6">
-        Find the Right Clinical Trial, Anywhere, Anytime
-      </h1>
-      <p className="text-lg text-gray-600 mb-16 max-w-2xl">
-        Search for trials in your language, tailored to your knowledge level.
-      </p>
-      <div className="flex flex-col items-center">
-        <p className="text-sm mb-4">Tap to start</p>
-        <Button
-          variant="outline"
-          size="icon"
-          className="w-20 h-20 rounded-full"
-          onClick={async () => {
-            await connectConversation();
-            setCurrentScreen('voiceChat');
-          }}
-        >
-          <Mic className="w-8 h-8" />
-        </Button>
-      </div>
-    </div>
-  );
-
   const VoiceChatScreen = () => (
     <div className="flex flex-col items-center min-h-screen p-6">
       <h1 className="text-2xl font-bold mb-12">Clinical Trial Finder</h1>
@@ -705,19 +770,7 @@ export default function MainPage() {
       {showConversation && (
         <ScrollArea className="w-full max-w-md h-48 mb-8 border rounded-lg p-4">
           {items.map(item => (
-            <div
-              key={item.id}
-              className={`mb-2 ${
-                item.role === 'system'
-                  ? 'text-gray-500'
-                  : item.role === 'assistant'
-                    ? 'text-blue-600'
-                    : 'text-green-600'
-              }`}
-            >
-              <strong>{item.role}:</strong>{' '}
-              {item.formatted.transcript || item.formatted.text}
-            </div>
+            <ConversationItem key={item.id} item={item} />
           ))}
         </ScrollArea>
       )}
@@ -770,6 +823,7 @@ export default function MainPage() {
               await handleManualReportGeneration();
               setCurrentScreen('results');
             }}
+            disabled={!trials.length}
           >
             <PhoneOff className="w-6 h-6" />
           </Button>
@@ -812,7 +866,9 @@ export default function MainPage() {
           </TabsContent>
           <TabsContent value="info">
             <div className="rounded-md border p-4">
-              <pre className="text-sm">{JSON.stringify(memoryKv, null, 2)}</pre>
+              <pre className="text-sm whitespace-pre-wrap">
+                {JSON.stringify(memoryKv, null, 2)}
+              </pre>
             </div>
           </TabsContent>
         </Tabs>
@@ -826,7 +882,7 @@ export default function MainPage() {
     </div>
   );
 
-  // Main Render
+  // Main render with Settings
   return (
     <div className="min-h-screen bg-white relative">
       <Button
@@ -840,9 +896,15 @@ export default function MainPage() {
 
       {showSettings && <SettingsMenu />}
 
-      {currentScreen === 'landing' && <LandingScreen />}
-      {currentScreen === 'voiceChat' && <VoiceChatScreen />}
-      {currentScreen === 'results' && <ResultsScreen />}
+      {currentScreen === 'landing' &&
+        (console.log('Rendering landing screen'), // Add logging
+        (<LandingScreen />))}
+      {currentScreen === 'voiceChat' &&
+        (console.log('Rendering voice chat'), // Add logging
+        (<VoiceChatScreen />))}
+      {currentScreen === 'results' &&
+        (console.log('Rendering results screen'), // Add logging
+        (<ResultsScreen />))}
     </div>
   );
 }

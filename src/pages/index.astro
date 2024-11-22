@@ -1,10 +1,11 @@
 ---
 import '@/styles/globals.css';
-
 import Layout from '../layouts/Layout.astro';
 import Card from '../components/Card.astro';
 import VoiceChat from '../components/VoiceChat';
-import { ConsolePage } from '../components/ConsolePage';
+import { ConsolePageOG } from '../components/ConsolePageOG';
+import MainPage from '../components/MainPage';
+import { ClientApp } from '../../misc/ClientApp';
 import SiteLayout from '../layouts/SiteLayout.astro';
 import {
   SignedIn,
@@ -13,9 +14,19 @@ import {
   SignInButton,
 } from '@clerk/astro/components';
 import TestButton from '../components/TestButton';
+
+// Get current mode from URL parameter or environment
+const debugMode =
+  import.meta.env.DEV ||
+  new URL(Astro.request.url).searchParams.get('mode') === 'dev';
+
+// Get title based on mode
+const title = debugMode
+  ? 'Clinical Trials Assistant (Debug)'
+  : 'Clinical Trials Assistant';
 ---
 
-<!-- src/pages/index.astro --><!-- <SiteLayout title="Clerk + Astro">
+<!-- src/pages/index.astro --><!-- src/pages/index.astro --><!-- <SiteLayout title="Clerk + Astro">
   <p>Sign in to try Clerk out!</p>
 </SiteLayout>
  -->
@@ -28,12 +39,42 @@ import TestButton from '../components/TestButton';
       <SignedIn>
         <UserButton />
         <TestButton client:load>Test shadcn/ui Button</TestButton>
-        <ConsolePage client:load />
+        <MainPage client:load />
       </SignedIn>
       <!-- link to /subscribe -->
       <a href="/subscribe">Subscribe</a>
     </nav>
 
+    <!-- <main>
+      <nav class="text-black">
+        <SignedOut>
+          <SignInButton mode="modal" />
+        </SignedOut>
+        <SignedIn>
+          <UserButton />
+          <TestButton client:load>Test shadcn/ui Button</TestButton>
+          {
+            debugMode ? (
+              <>
+                <div class="fixed top-0 left-0 right-0 z-50 bg-yellow-100 text-yellow-800 px-4 py-1 text-sm text-center">
+                  Debug Mode -{' '}
+                  <a href="/?mode=prod" class="underline hover:text-yellow-900">
+                    Switch to Client UI
+                  </a>
+                </div>
+                <div class="mt-8">
+                  <ConsolePage client:load />
+                </div>
+              </>
+            ) : (
+              <ClientApp client:load />
+            )
+          }
+        </SignedIn>
+        <!-- link to /subscribe -->-->
+    <!-- <a href="/subscribe">Subscribe</a> -->
+    <!-- </main> -->
+    /* -------------------------------------------------------------- */
     <!-- <VoiceChat client:load/> -->
     <!-- <svg
 			class="astro-a"
@@ -91,66 +132,66 @@ import TestButton from '../components/TestButton';
 			/>
 		</ul> -->
   </main>
-</Layout>
 
-<style>
-  main {
-    margin: auto;
-    padding: 1rem;
-    width: 800px;
-    max-width: calc(100% - 2rem);
-    color: white;
-    font-size: 20px;
-    line-height: 1.6;
-  }
-  .astro-a {
-    position: absolute;
-    top: -32px;
-    left: 50%;
-    transform: translatex(-50%);
-    width: 220px;
-    height: auto;
-    z-index: -1;
-  }
-  h1 {
-    font-size: 4rem;
-    font-weight: 700;
-    line-height: 1;
-    text-align: center;
-    margin-bottom: 1em;
-  }
-  .text-gradient {
-    background-image: var(--accent-gradient);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-size: 400%;
-    background-position: 0%;
-  }
-  .instructions {
-    margin-bottom: 2rem;
-    border: 1px solid rgba(var(--accent-light), 25%);
-    background: linear-gradient(
-      rgba(var(--accent-dark), 66%),
-      rgba(var(--accent-dark), 33%)
-    );
-    padding: 1.5rem;
-    border-radius: 8px;
-  }
-  .instructions code {
-    font-size: 0.8em;
-    font-weight: bold;
-    background: rgba(var(--accent-light), 12%);
-    color: rgb(var(--accent-light));
-    border-radius: 4px;
-    padding: 0.3em 0.4em;
-  }
-  .instructions strong {
-    color: rgb(var(--accent-light));
-  }
-  .link-card-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(24ch, 1fr));
-    gap: 2rem;
-    padding: 0;
-  }
-</style>
+  <style>
+    main {
+      margin: auto;
+      padding: 1rem;
+      width: 800px;
+      max-width: calc(100% - 2rem);
+      color: white;
+      font-size: 20px;
+      line-height: 1.6;
+    }
+    .astro-a {
+      position: absolute;
+      top: -32px;
+      left: 50%;
+      transform: translatex(-50%);
+      width: 220px;
+      height: auto;
+      z-index: -1;
+    }
+    h1 {
+      font-size: 4rem;
+      font-weight: 700;
+      line-height: 1;
+      text-align: center;
+      margin-bottom: 1em;
+    }
+    .text-gradient {
+      background-image: var(--accent-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-size: 400%;
+      background-position: 0%;
+    }
+    .instructions {
+      margin-bottom: 2rem;
+      border: 1px solid rgba(var(--accent-light), 25%);
+      background: linear-gradient(
+        rgba(var(--accent-dark), 66%),
+        rgba(var(--accent-dark), 33%)
+      );
+      padding: 1.5rem;
+      border-radius: 8px;
+    }
+    .instructions code {
+      font-size: 0.8em;
+      font-weight: bold;
+      background: rgba(var(--accent-light), 12%);
+      color: rgb(var(--accent-light));
+      border-radius: 4px;
+      padding: 0.3em 0.4em;
+    }
+    .instructions strong {
+      color: rgb(var(--accent-light));
+    }
+    .link-card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(24ch, 1fr));
+      gap: 2rem;
+      padding: 0;
+    }
+  </style>
+</Layout>
