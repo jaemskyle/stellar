@@ -1,6 +1,6 @@
 // src/components/console/ConversationDisplay.tsx
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import type { ItemType } from '@openai/realtime-api-beta/dist/lib/client.js';
 
 interface ConversationDisplayProps {
@@ -20,6 +20,25 @@ export function ConversationDisplay({
       (el as HTMLDivElement).scrollTop = el.scrollHeight;
     });
   }, [items]);
+
+  // Missing cleanup on unmount
+  useEffect(() => {
+    return () => {
+      const audioElements = document.querySelectorAll('audio');
+      audioElements.forEach(audio => {
+        audio.pause();
+        audio.src = '';
+      });
+    };
+  }, []);
+
+  // Missing error boundary for audio playback
+  const handleAudioError = useCallback(
+    (event: React.SyntheticEvent<HTMLAudioElement>) => {
+      console.error('Audio playback error:', event);
+    },
+    []
+  );
 
   return (
     <div className={`content-block conversation ${className}`}>
@@ -79,7 +98,11 @@ export function ConversationDisplay({
 
               {/* audio playback - exact match */}
               {conversationItem.formatted.file && (
-                <audio src={conversationItem.formatted.file.url} controls />
+                <audio
+                  src={conversationItem.formatted.file.url}
+                  controls
+                  onError={handleAudioError}
+                />
               )}
             </div>
           </div>

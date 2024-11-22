@@ -1,6 +1,6 @@
 // src/components/console/EventLog.tsx
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { AudioVisualizer } from './AudioVisualizer';
 import { EventItem } from './EventItem';
 import type { EventDisplayProps } from '@/types/console';
@@ -15,6 +15,16 @@ export function EventLog({
   eventsScrollRef,
   className = '',
 }: EventDisplayProps) {
+  useEffect(() => {
+    const scrollRef = eventsScrollRef?.current;
+    if (!scrollRef) return;
+
+    scrollRef.scrollTo({
+      top: scrollRef.scrollHeight,
+      behavior: 'smooth',
+    });
+  }, [events, eventsScrollRef]);
+
   return (
     <div className={`content-block events ${className}`}>
       <AudioVisualizer recorder={wavRecorder} player={wavStreamPlayer} />

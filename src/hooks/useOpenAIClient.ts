@@ -20,6 +20,16 @@ const LOCAL_RELAY_SERVER_URL: string =
   import.meta.env.REACT_APP_LOCAL_RELAY_SERVER_URL || '';
 
 export function useOpenAIClient(initialApiKey?: string) {
+  // Add missing report cleanup
+  useEffect(() => {
+    return () => {
+      reportHandler.clear();
+    };
+  }, []);
+
+  // Add missing report loading state
+  const [isReportLoading, setIsReportLoading] = useState(false);
+
   // Client state
   const [apiKey, setApiKey] = useState<string>('');
   const clientRef = useRef<RealtimeClient | null>(null);
@@ -32,105 +42,116 @@ export function useOpenAIClient(initialApiKey?: string) {
   const [finalReport, setFinalReport] = useState<TrialsReport | null>(null);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
+  // Missing error state management from ConsolePageOG
+  const [error, setError] = useState<Error | null>(null);
+
   // Tools setup
   const addTools = useCallback(() => {
-    if (!clientRef.current) return;
+    try {
+      if (!clientRef.current) return;
 
-    const client = clientRef.current;
+      const client = clientRef.current;
 
-    // Memory Tool
-    client.addTool(
-      {
-        name: 'set_memory',
-        description: 'Saves important data about the user into memory.',
-        parameters: {
-          type: 'object',
-          properties: {
-            key: {
-              type: 'string',
-              description:
-                'The key of the memory value. Always use lowercase and underscores, no other characters.',
+      // Memory Tool
+      client.addTool(
+        {
+          name: 'set_memory',
+          description: 'Saves important data about the user into memory.',
+          parameters: {
+            type: 'object',
+            properties: {
+              key: {
+                type: 'string',
+                description:
+                  'The key of the memory value. Always use lowercase and underscores, no other characters.',
+              },
+              value: {
+                type: 'string',
+                description: 'Value can be anything represented as a string',
+              },
             },
-            value: {
-              type: 'string',
-              description: 'Value can be anything represented as a string',
-            },
+            required: ['key', 'value'],
           },
-          required: ['key', 'value'],
         },
-      },
-      async ({ key, value }: { [key: string]: any }) => {
-        setMemoryKv(memoryKv => {
-          const newKv = { ...memoryKv };
-          newKv[key] = value;
-          return newKv;
-        });
-        return { ok: true };
-      }
-    );
+        async ({ key, value }: { [key: string]: any }) => {
+          setMemoryKv(memoryKv => {
+            const newKv = { ...memoryKv };
+            newKv[key] = value;
+            return newKv;
+          });
+          return { ok: true };
+        }
+      );
 
-    // Clinical Trials Tool
-    client.addTool(CTG_TOOL_DEFINITION, async (params: any) => {
-      try {
-        setIsLoadingTrials(true);
-        setTrials([]);
+      // Clinical Trials Tool
+      client.addTool(CTG_TOOL_DEFINITION, async (params: any) => {
+        try {
+          setIsLoadingTrials(true);
+          setTrials([]);
 
-        const trials = await getClinicalTrials(params);
-        reportHandler.updateLatestTrials(trials, params);
-        setTrials(trials);
-        setIsLoadingTrials(false);
+          const trials = await getClinicalTrials(params);
+          reportHandler.updateLatestTrials(trials, params);
+          setTrials(trials);
+          setIsLoadingTrials(false);
 
-        return {
-          status: 'success',
-          resultCount: trials.length,
-          trials,
-          message: `Successfully retrieved ${trials.length} clinical trials matching your criteria.`,
-          summary:
-            trials.length > 0
-              ? `Found ${trials.length} trials. The first trial is "${trials[0].studyTitle}" (${trials[0].nctNumber}).`
-              : 'No matching trials found with the current criteria.',
-        };
-      } catch (error) {
-        console.error('Error fetching trials:', error);
-        setIsLoadingTrials(false);
-        return {
-          status: 'error',
-          error: 'Failed to fetch clinical trials',
-          message:
-            'I apologize, but there was an error retrieving the clinical trials.',
-        };
-      }
-    });
+          return {
+            status: 'success',
+            resultCount: trials.length,
+            trials,
+            message: `Successfully retrieved ${trials.length} clinical trials matching your criteria.`,
+            summary:
+              trials.length > 0
+                ? `Found ${trials.length} trials. The first trial is "${trials[0].studyTitle}" (${trials[0].nctNumber}).`
+                : 'No matching trials found with the current criteria.',
+          };
+        } catch (error) {
+          console.error('Error fetching trials:', error);
+          setIsLoadingTrials(false);
+          return {
+            status: 'error',
+            error: 'Failed to fetch clinical trials',
+            message:
+              'I apologize, but there was an error retrieving the clinical trials.',
+          };
+        }
+      });
 
-    // Report Generation Tool
-    client.addTool(REPORT_TOOL_DEFINITION, async (params: any) => {
-      try {
-        const report = reportHandler.generateReport(
-          memoryKv,
-          'assistant',
-          params.conversationComplete,
-          params.finalNotes
-        );
+      // Report Generation Tool
+      client.addTool(REPORT_TOOL_DEFINITION, async (params: any) => {
+        try {
+          setIsReportLoading(true);
+          const report = reportHandler.generateReport(
+            memoryKv,
+            'assistant',
+            params.conversationComplete,
+            params.finalNotes
+          );
 
-        setFinalReport(report);
-        setIsReportModalOpen(true);
+          setFinalReport(report);
+          setIsReportModalOpen(true);
 
-        return {
-          status: 'success',
-          message: 'Report generated successfully.',
-          reportTimestamp: report.timestamp,
-        };
-      } catch (error) {
-        console.error('Error generating report:', error);
-        return {
-          status: 'error',
-          error: 'Failed to generate report',
-          message: 'There was an error generating the trials report.',
-        };
-      }
-    });
+          return {
+            status: 'success',
+            message: 'Report generated successfully.',
+            reportTimestamp: report.timestamp,
+          };
+        } catch (error) {
+          console.error('Error generating report:', error);
+          return {
+            status: 'error',
+            error: 'Failed to generate report',
+            message: 'There was an error generating the trials report.',
+          };
+        } finally {
+          setIsReportLoading(false);
+        }
+      });
 
-    client.updateSession();
+      client.updateSession();
+    } catch (error) {
+      console.error('Failed to add tools:', error);
+      setError(error as Error);
+    }
   }, [memoryKv]);
 
   // API Key management
@@ -263,8 +284,11 @@ export function useOpenAIClient(initialApiKey?: string) {
 
     // Tool-related state
     memoryKv,
+    setMemoryKv,
     trials,
+    setTrials,
     isLoadingTrials,
+    setIsLoadingTrials,
     finalReport,
     isReportModalOpen,
     setIsReportModalOpen,
@@ -273,5 +297,8 @@ export function useOpenAIClient(initialApiKey?: string) {
     addTools,
     setupEventHandlers,
     setFinalReport, // Add this line
+    error,
+    setError,
+    isReportLoading,
   };
 }

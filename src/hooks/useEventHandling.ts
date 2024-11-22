@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type { RealtimeEvent } from '@/types/console';
 
 export function useEventHandling() {
@@ -24,7 +24,14 @@ export function useEventHandling() {
       const newEvent = {
         ...event,
         time: new Date().toISOString(),
+        count: 1,
       };
+
+      if (newEvent.event.type === 'input_audio_buffer.append') {
+        newEvent.event.audio = `[trimmed: ${newEvent.event.audio.length} bytes]`;
+      } else if (newEvent.event.type === 'response.audio.delta') {
+        newEvent.event.delta = `[trimmed: ${newEvent.event.delta.length} bytes]`;
+      }
 
       const lastEvent = events[events.length - 1];
       if (lastEvent?.event.type === event.event.type) {
@@ -39,6 +46,13 @@ export function useEventHandling() {
   const clearEvents = useCallback(() => {
     setRealtimeEvents([]);
     setExpandedEvents({});
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      setRealtimeEvents([]);
+      setExpandedEvents({});
+    };
   }, []);
 
   return {

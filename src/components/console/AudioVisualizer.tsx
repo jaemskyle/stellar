@@ -17,6 +17,12 @@ export function AudioVisualizer({
 
   // Audio visualization effect - exact port from ConsolePageOG
   useEffect(() => {
+    // Add missing initialization check
+    if (!clientCanvasRef.current || !serverCanvasRef.current) {
+      console.warn('Canvas elements not initialized');
+      return;
+    }
+
     if (!recorder || !player) {
       console.warn('Audio devices not initialized');
       return;

@@ -29,7 +29,9 @@ export function useAudioProcessor({
   const [isRecording, setIsRecording] = useState(false);
 
   // Add missing audio state tracking
-  const [audioState, setAudioState] = useState<'idle' | 'recording' | 'error'>('idle');
+  const [audioState, setAudioState] = useState<'idle' | 'recording' | 'error'>(
+    'idle'
+  );
 
   // Add VAD mode tracking
   const [turnEndType, setTurnEndType] = useState<'none' | 'server_vad'>('none');
@@ -104,11 +106,14 @@ export function useAudioProcessor({
   );
 
   // Add error handling
-  const handleAudioError = useCallback((error: Error) => {
-    console.error('Audio processing error:', error);
-    setAudioState('error');
-    onAudioProcessingEvent?.('error');
-  }, [onAudioProcessingEvent]);
+  const handleAudioError = useCallback(
+    (error: Error) => {
+      console.error('Audio processing error:', error);
+      setAudioState('error');
+      onAudioProcessingEvent?.('error');
+    },
+    [onAudioProcessingEvent]
+  );
 
   // Setup and cleanup functions - matched to ConsolePageOG connection logic
   const setupAudio = useCallback(async () => {

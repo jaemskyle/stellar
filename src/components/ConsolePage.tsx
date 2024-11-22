@@ -34,8 +34,11 @@ export function ConsolePage({
     addTools,
     setupEventHandlers,
     memoryKv,
+    setMemoryKv, // Add missing setter
     trials,
+    setTrials, // Add missing setter
     isLoadingTrials,
+    setIsLoadingTrials, // Add missing setter
     finalReport,
     setFinalReport,
     isReportModalOpen,
@@ -108,6 +111,10 @@ export function ConsolePage({
       setupEventHandlers,
       setupAudio,
       cleanupAudio,
+      // Add missing props
+      setMemoryKv,
+      setTrials,
+      setIsLoadingTrials,
     });
 
   // Update report generation to include all deps
