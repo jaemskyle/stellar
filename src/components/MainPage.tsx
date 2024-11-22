@@ -546,6 +546,9 @@ export default function MainPage() {
     };
   }, [apiKey, clientRef]);
 
+  /* ---------------------------------------------------------------- */
+  /* ---------------------------------------------------------------- */
+
   /**
    * UI Effects
    * Auto-scroll the event logs
@@ -566,75 +569,165 @@ export default function MainPage() {
     });
   }, [items]);
 
+  /* ---------------------------------------------------------------- */
+  /* ---------------------------------------------------------------- */
+  /* ---------------------------------------------------------------- */
+  /* ---------------------------------------------------------------- */
+  /* ---------------------------------------------------------------- */
+
   // Audio Visualization Effect
-  useEffect(() => {
-    if (!visualizerRef.current || !isRecording) return;
+  // First, let's add new components for status handling
 
-    const canvas = visualizerRef.current;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+  const StatusIndicator = ({
+    isConnected,
+    isRecording,
+    hasError,
+  }: {
+    isConnected: boolean;
+    isRecording: boolean;
+    hasError: boolean;
+  }) => (
+    <div className="absolute top-4 left-4 flex items-center space-x-2">
+      <div
+        className={`h-2 w-2 rounded-full ${
+          isConnected ? 'bg-green-500' : hasError ? 'bg-red-500' : 'bg-gray-500'
+        }`}
+      />
+      <span className="text-sm text-gray-600">
+        {hasError
+          ? 'Error'
+          : isConnected
+            ? isRecording
+              ? 'Recording'
+              : 'Connected'
+            : 'Disconnected'}
+      </span>
+    </div>
+  );
 
-    let isLoaded = true;
+  const AudioVisualization = ({
+    isRecording,
+    wavRecorderRef,
+    wavStreamPlayerRef,
+  }: {
+    isRecording: boolean;
+    wavRecorderRef: React.RefObject<WavRecorder>;
+    wavStreamPlayerRef: React.RefObject<WavStreamPlayer>;
+  }) => {
+    const clientCanvasRef = useRef<HTMLCanvasElement>(null);
+    const serverCanvasRef = useRef<HTMLCanvasElement>(null);
+    // const animationFrameRef = useRef<number>();
 
-    const animate = () => {
-      if (!isLoaded || !ctx) return; // ? Should this be removed?
+    useEffect(() => {
+      if (!clientCanvasRef.current || !serverCanvasRef.current) return;
 
-      const width = canvas.width;
-      const height = canvas.height;
-      ctx.clearRect(0, 0, width, height);
+      const clientCanvas = clientCanvasRef.current;
+      const serverCanvas = serverCanvasRef.current;
+      const clientCtx = clientCanvas.getContext('2d');
+      const serverCtx = serverCanvas.getContext('2d');
 
-      // Draw base circle
-      ctx.beginPath();
-      ctx.arc(width / 2, height / 2, 50, 0, 2 * Math.PI);
-      ctx.strokeStyle = '#666';
-      ctx.lineWidth = 2;
-      ctx.stroke();
+      if (!clientCtx || !serverCtx) return;
 
-      // Animate waves when recording
-      if (isRecording) {
-        const time = Date.now() / 1000;
-        const numWaves = 3;
-        for (let i = 0; i < numWaves; i++) {
-          // Use audio data from WavRecorder to influence the wave radius
-          // Get real audio data or fallback to animation
-          const audioData =
-            wavRecorderRef.current.getFrequencies?.('voice')?.values;
-          const audioInfluence = audioData
-            ? Array.from(audioData).reduce((sum, val) => sum + val, 0) /
-              audioData.length
-            : Math.sin(time * 2 + i);
+      let isLoaded = true;
 
-          const radius = 50 + audioInfluence * 10;
+      const animate = () => {
+        // Draw input audio visualization (circular)
+        const width = clientCanvas.width;
+        const height = clientCanvas.height;
 
-          ctx.beginPath();
-          ctx.arc(width / 2, height / 2, radius, 0, 2 * Math.PI);
-          ctx.strokeStyle = `rgba(100, 100, 100, ${0.3 - i * 0.1})`;
-          ctx.stroke();
+        // Clear both canvases
+        clientCtx.clearRect(0, 0, width, height);
+        serverCtx.clearRect(0, 0, width, height);
+
+        // Draw input visualization
+        if (isRecording) {
+          // Base circle
+          clientCtx.beginPath();
+          clientCtx.arc(width / 2, height / 2, 50, 0, 2 * Math.PI);
+          clientCtx.strokeStyle = '#666';
+          clientCtx.lineWidth = 2;
+          clientCtx.stroke();
+
+          // Animated waves
+          const time = Date.now() / 1000;
+          const numWaves = 3;
+
+          for (let i = 0; i < numWaves; i++) {
+            const audioData =
+              wavRecorderRef.current?.getFrequencies?.('voice')?.values;
+            const audioInfluence = audioData
+              ? Array.from(audioData).reduce((sum, val) => sum + val, 0) /
+                audioData.length
+              : Math.sin(time * 2 + i);
+
+            const radius = 50 + audioInfluence * 10;
+
+            clientCtx.beginPath();
+            clientCtx.arc(width / 2, height / 2, radius, 0, 2 * Math.PI);
+            clientCtx.strokeStyle = `rgba(0, 153, 255, ${0.3 - i * 0.1})`;
+            clientCtx.stroke();
+          }
         }
 
-        // Add a subtle pulse effect
-        const pulseRadius = 50 + Math.sin(time * 4) * 3;
-        ctx.beginPath();
-        ctx.arc(width / 2, height / 2, pulseRadius, 0, 2 * Math.PI);
-        ctx.strokeStyle = 'rgba(0, 153, 255, 0.2)';
-        ctx.lineWidth = 3;
-        ctx.stroke();
-      }
+        // Draw output visualization (small waveform)
+        if (wavStreamPlayerRef.current?.analyser) {
+          const values =
+            wavStreamPlayerRef.current.getFrequencies('voice')?.values ||
+            new Float32Array([0]);
 
-      if (isLoaded) {
-        animationFrameRef.current = requestAnimationFrame(animate);
-      }
-    };
+          serverCtx.beginPath();
+          serverCtx.moveTo(0, height / 2);
 
-    animate();
+          values.forEach((value, index) => {
+            const x = (index / values.length) * width;
+            const y = height / 2 + (value * height) / 4;
+            serverCtx.lineTo(x, y);
+          });
 
-    return () => {
-      isLoaded = false;
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-  }, [isRecording]);
+          serverCtx.strokeStyle = '#009900';
+          serverCtx.stroke();
+        }
+
+        if (isLoaded) {
+          animationFrameRef.current = requestAnimationFrame(animate);
+        }
+      };
+
+      animate();
+
+      return () => {
+        isLoaded = false;
+        if (animationFrameRef.current) {
+          cancelAnimationFrame(animationFrameRef.current);
+        }
+      };
+    }, [isRecording, wavRecorderRef, wavStreamPlayerRef]);
+
+    return (
+      <div className="relative flex flex-col items-center space-y-2">
+        <canvas
+          ref={clientCanvasRef}
+          className="w-32 h-32 rounded-full bg-gray-50"
+          width={128}
+          height={128}
+        />
+        <canvas
+          ref={serverCanvasRef}
+          className="w-32 h-8 rounded-lg bg-gray-50"
+          width={128}
+          height={32}
+        />
+      </div>
+    );
+  };
+
+  const AudioPlayer = ({ file }: { file: { url: string } }) => (
+    <div className="mt-2">
+      <audio src={file.url} controls className="w-full max-w-xs" />
+    </div>
+  );
+
+  /* ---------------------------------------------------------------- */
 
   useEffect(() => {
     console.log('Current screen:', currentScreen); // Add logging
@@ -645,33 +738,42 @@ export default function MainPage() {
   /* ---------------------------------------------------------------- */
 
   // Settings Menu Component
-  const SettingsMenu = () => (
-    <div className="absolute top-4 right-4 z-10 bg-white rounded-lg shadow-lg p-4">
-      <h3 className="font-semibold mb-2">Settings</h3>
-      <div className="space-y-2">
+  const SettingsMenu = ({
+    resetAPIKey,
+    changeTurnEndType,
+    canPushToTalk,
+    fullCleanup,
+  }: {
+    resetAPIKey: () => void;
+    changeTurnEndType: (value: string) => Promise<void>;
+    canPushToTalk: boolean;
+    fullCleanup: () => Promise<void>;
+  }) => (
+    <div className="absolute top-16 right-4 z-20 bg-white rounded-lg shadow-lg p-4 min-w-[200px]">
+      <h3 className="font-semibold mb-4">Settings</h3>
+      <div className="space-y-4">
         <Button
           variant="outline"
           size="sm"
           onClick={resetAPIKey}
-          className="w-full"
+          className="w-full justify-start"
         >
           Reset API Key
         </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() =>
-            changeTurnEndType(canPushToTalk ? 'server_vad' : 'none')
-          }
-          className="w-full"
-        >
-          {canPushToTalk ? 'Switch to VAD' : 'Switch to Push-to-Talk'}
-        </Button>
+
+        <div className="space-y-2">
+          <label className="text-sm text-gray-600">Voice Detection Mode:</label>
+          <VadToggle
+            canPushToTalk={canPushToTalk}
+            onChange={value => changeTurnEndType(value)}
+          />
+        </div>
+
         <Button
           variant="outline"
           size="sm"
           onClick={fullCleanup}
-          className="w-full text-red-600"
+          className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
         >
           Reset Everything
         </Button>
@@ -700,15 +802,25 @@ export default function MainPage() {
     }
   };
 
+  /* ---------------------------------------------------------------- */
+
+  interface LandingScreenProps {
+    onStart: () => Promise<void>;
+  }
+
   // UI Components
-  const LandingScreen = () => (
+  const LandingScreen: React.FC<LandingScreenProps> = ({ onStart }) => (
     <div className="flex flex-col items-center justify-center min-h-screen p-6 text-center">
       <h1 className="text-5xl font-bold leading-tight mb-6">
-        Find the Right Clinical Trial, Anywhere, Anytime
+        Find the Right Clinical Trial.
+        <br />
+        Anywhere, Anytime.
       </h1>
       <p className="text-lg text-gray-600 mb-16 max-w-2xl">
+        {/* add line break after "Search for trials..." */}
         Search for trials in your language, tailored to your knowledge level.
-        Simplifying access for patients and caregivers worldwide
+        <br />
+        Simplifying access for patients and caregivers worldwide.
       </p>
       <div className="flex flex-col items-center">
         <p className="text-sm mb-4">Tap to start</p>
@@ -718,7 +830,7 @@ export default function MainPage() {
           className="w-20 h-20 rounded-full bg-black hover:bg-gray-800 transition-colors flex items-center justify-center"
           onClick={() => {
             console.log('Button clicked - immediate feedback');
-            handleStart();
+            onStart();
           }}
           // onClick={async () => {
           //   await connectConversation();
@@ -731,49 +843,221 @@ export default function MainPage() {
     </div>
   );
 
-  const ConversationItem = ({ item }: { item: ItemType }) => (
-    <div className="relative group">
-      <div
-        className={`mb-2 ${
-          item.role === 'system'
-            ? 'text-gray-500'
-            : item.role === 'assistant'
-              ? 'text-blue-600'
-              : 'text-green-600'
-        }`}
-      >
-        <strong>{item.role}:</strong>{' '}
-        {item.formatted.transcript || item.formatted.text}
-        <button
-          onClick={() => deleteConversationItem(item.id)}
-          className="absolute -right-4 top-0 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-600"
+  // const LandingScreen = () => (
+  //   <div className="flex flex-col items-center justify-center min-h-screen p-6 text-center">
+  //     <h1 className="text-5xl font-bold leading-tight mb-6">
+  //       Find the Right Clinical Trial, Anywhere, Anytime
+  //     </h1>
+  //     <p className="text-lg text-gray-600 mb-16 max-w-2xl">
+  //       Search for trials in your language, tailored to your knowledge level.
+  //       Simplifying access for patients and caregivers worldwide
+  //     </p>
+  //     <div className="flex flex-col items-center">
+  //       <p className="text-sm mb-4">Tap to start</p>
+  //       <button
+  //         // variant="outline"
+  //         // size="icon"
+  //         className="w-20 h-20 rounded-full bg-black hover:bg-gray-800 transition-colors flex items-center justify-center"
+  //         onClick={() => {
+  //           console.log('Button clicked - immediate feedback');
+  //           handleStart();
+  //         }}
+  //         // onClick={async () => {
+  //         //   await connectConversation();
+  //         //   setCurrentScreen('voiceChat');
+  //         // }}
+  //       >
+  //         <Mic className="w-8 h-8 text-white" />
+  //       </button>
+  //     </div>
+  //   </div>
+  // );
+
+  /* ---------------------------------------------------------------- */
+  /* ---------------------------------------------------------------- */
+  /* ---------------------------------------------------------------- */
+
+  // Enhanced conversation components with proper message handling
+  const ConversationItem = ({ item }: { item: ItemType }) => {
+    const getContent = () => {
+      if (item.type === 'function_call_output') {
+        return <div className="text-gray-600">{item.formatted.output}</div>;
+      }
+
+      if (item.formatted.tool) {
+        return (
+          <div className="text-gray-600">
+            {item.formatted.tool.name}({item.formatted.tool.arguments})
+          </div>
+        );
+      }
+
+      if (item.role === 'user') {
+        return (
+          <div>
+            {item.formatted.transcript ||
+              (item.formatted.audio?.length
+                ? '(awaiting transcript)'
+                : item.formatted.text || '(item sent)')}
+          </div>
+        );
+      }
+
+      if (item.role === 'assistant') {
+        return (
+          <div>
+            {item.formatted.transcript || item.formatted.text || '(truncated)'}
+          </div>
+        );
+      }
+
+      return null;
+    };
+
+    return (
+      <div className="relative group">
+        <div
+          className={`mb-4 p-4 rounded-lg ${
+            item.role === 'system'
+              ? 'bg-gray-50 text-gray-500'
+              : item.role === 'assistant'
+                ? 'bg-blue-50 text-blue-600'
+                : 'bg-green-50 text-green-600'
+          }`}
         >
-          ×
-        </button>
+          <div className="flex items-center justify-between mb-2">
+            <strong className="text-sm">
+              {(item.role || item.type).replaceAll('_', ' ')}
+            </strong>
+            <button
+              onClick={() => deleteConversationItem(item.id)}
+              className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-600 transition-opacity"
+            >
+              Delete
+            </button>
+          </div>
+          <div className="text-gray-800">{getContent()}</div>
+          {item.formatted.file && <AudioPlayer file={item.formatted.file} />}
+        </div>
       </div>
+    );
+  };
+
+  const ConversationView = ({
+    items,
+    showConversation,
+  }: {
+    items: ItemType[];
+    showConversation: boolean;
+  }) => {
+    if (!showConversation) return null;
+
+    return (
+      <ScrollArea className="w-full max-w-md h-48 mb-8 border rounded-lg p-4">
+        {!items.length ? (
+          <div className="text-center text-gray-500">
+            Awaiting connection...
+          </div>
+        ) : (
+          items.map(item => <ConversationItem key={item.id} item={item} />)
+        )}
+      </ScrollArea>
+    );
+  };
+
+  const ErrorDisplay = ({ error }: { error: string | null }) => {
+    if (!error) return null;
+
+    return (
+      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded-lg">
+        {error}
+      </div>
+    );
+  };
+
+  // Enhanced VAD Toggle component
+  const VadToggle = ({
+    canPushToTalk,
+    onChange,
+  }: {
+    canPushToTalk: boolean;
+    onChange: (value: string) => void;
+  }) => (
+    <div className="flex items-center space-x-2 p-2 rounded-lg bg-gray-50">
+      <button
+        className={`px-3 py-1 rounded-md transition-colors ${
+          canPushToTalk ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-600'
+        }`}
+        onClick={() => onChange('none')}
+      >
+        Manual
+      </button>
+      <button
+        className={`px-3 py-1 rounded-md transition-colors ${
+          !canPushToTalk
+            ? 'bg-blue-500 text-white'
+            : 'bg-gray-200 text-gray-600'
+        }`}
+        onClick={() => onChange('server_vad')}
+      >
+        VAD
+      </button>
     </div>
   );
 
-  const VoiceChatScreen = () => (
+  /* ---------------------------------------------------------------- */
+  /* ---------------------------------------------------------------- */
+  /* ---------------------------------------------------------------- */
+
+  const VoiceChatScreen = ({
+    isConnected,
+    isRecording,
+    canPushToTalk,
+    showConversation,
+    hasError,
+    errorMessage,
+    items,
+    startRecording,
+    stopRecording,
+    setShowConversation,
+    handleManualReportGeneration,
+    wavRecorderRef,
+    wavStreamPlayerRef,
+  }: {
+    isConnected: boolean;
+    isRecording: boolean;
+    canPushToTalk: boolean;
+    showConversation: boolean;
+    hasError: boolean;
+    errorMessage: string | null;
+    items: ItemType[];
+    startRecording: () => Promise<void>;
+    stopRecording: () => Promise<void>;
+    setShowConversation: (show: boolean) => void;
+    handleManualReportGeneration: () => Promise<void>;
+    wavRecorderRef: React.RefObject<WavRecorder>;
+    wavStreamPlayerRef: React.RefObject<WavStreamPlayer>;
+  }) => (
     <div className="flex flex-col items-center min-h-screen p-6">
+      <StatusIndicator
+        isConnected={isConnected}
+        isRecording={isRecording}
+        hasError={hasError}
+      />
+
+      <ErrorDisplay error={errorMessage} />
+
       <h1 className="text-2xl font-bold mb-12">Clinical Trial Finder</h1>
 
       <div className="flex-grow flex items-center justify-center w-full">
-        <canvas
-          ref={visualizerRef}
-          className="w-32 h-32"
-          width={128}
-          height={128}
+        <AudioVisualization
+          isRecording={isRecording}
+          wavRecorderRef={wavRecorderRef}
+          wavStreamPlayerRef={wavStreamPlayerRef}
         />
       </div>
 
-      {showConversation && (
-        <ScrollArea className="w-full max-w-md h-48 mb-8 border rounded-lg p-4">
-          {items.map(item => (
-            <ConversationItem key={item.id} item={item} />
-          ))}
-        </ScrollArea>
-      )}
+      <ConversationView items={items} showConversation={showConversation} />
 
       <div className="w-full max-w-md flex justify-center space-x-8 mt-8">
         <div className="flex flex-col items-center">
@@ -798,13 +1082,16 @@ export default function MainPage() {
           <Button
             variant="outline"
             size="icon"
-            className="rounded-full w-12 h-12 mb-2"
+            className={`rounded-full w-12 h-12 mb-2 ${
+              isRecording ? 'bg-blue-50 border-blue-200' : ''
+            }`}
             onMouseDown={startRecording}
             onMouseUp={stopRecording}
+            onMouseLeave={stopRecording} // Safety: stop if mouse leaves button
             disabled={!isConnected || !canPushToTalk}
           >
             {isRecording ? (
-              <MicOff className="w-6 h-6" />
+              <MicOff className="w-6 h-6 text-blue-500" />
             ) : (
               <Mic className="w-6 h-6" />
             )}
@@ -819,11 +1106,13 @@ export default function MainPage() {
             variant="outline"
             size="icon"
             className="rounded-full w-12 h-12 mb-2"
-            onClick={async () => {
-              await handleManualReportGeneration();
-              setCurrentScreen('results');
-            }}
-            disabled={!trials.length}
+            // onClick={async () => {
+            //   await handleManualReportGeneration();
+            //   setCurrentScreen('results');
+            // }}
+            // disabled={!trials.length}
+            onClick={handleManualReportGeneration}
+            disabled={!isConnected || isRecording}
           >
             <PhoneOff className="w-6 h-6" />
           </Button>
@@ -832,14 +1121,39 @@ export default function MainPage() {
       </div>
     </div>
   );
-
-  const ResultsScreen = () => (
+  const ResultsScreen = ({
+    trials,
+    isLoadingTrials,
+    memoryKv,
+    activeTab,
+    setActiveTab,
+    connectConversation,
+    setCurrentScreen,
+    finalReport,
+    isReportModalOpen,
+    setIsReportModalOpen,
+  }: {
+    trials: StudyInfo[];
+    isLoadingTrials: boolean;
+    memoryKv: { [key: string]: any };
+    activeTab: string;
+    setActiveTab: (tab: string) => void;
+    connectConversation: () => Promise<void>;
+    setCurrentScreen: (screen: string) => void;
+    finalReport: TrialsReport | null;
+    isReportModalOpen: boolean;
+    setIsReportModalOpen: (open: boolean) => void;
+  }) => (
     <div className="flex flex-col items-center min-h-screen p-6">
       <h1 className="text-4xl font-bold text-center mb-4">
-        Clinical Trial Results
+        Clinical Trial Results - Consult with your healthcare professional
       </h1>
       <p className="text-gray-600 text-center mb-8">
         We found {trials.length} matching trials
+        <br />
+        {isLoadingTrials
+          ? 'Loading trials...'
+          : `Found ${trials.length} matching trials`}
       </p>
 
       <Button
@@ -882,9 +1196,13 @@ export default function MainPage() {
     </div>
   );
 
-  // Main render with Settings
+  // Add error handling state
+  const [error, setError] = useState<string | null>(null);
+
+  // Main render function with proper state handling
   return (
     <div className="min-h-screen bg-white relative">
+      {/* Settings Button */}
       <Button
         variant="ghost"
         size="icon"
@@ -894,17 +1212,76 @@ export default function MainPage() {
         <Settings className="w-5 h-5" />
       </Button>
 
-      {showSettings && <SettingsMenu />}
+      {/* Settings Menu */}
+      {showSettings && (
+        <SettingsMenu
+          resetAPIKey={resetAPIKey}
+          changeTurnEndType={changeTurnEndType}
+          canPushToTalk={canPushToTalk}
+          fullCleanup={fullCleanup}
+        />
+      )}
 
-      {currentScreen === 'landing' &&
-        (console.log('Rendering landing screen'), // Add logging
-        (<LandingScreen />))}
-      {currentScreen === 'voiceChat' &&
-        (console.log('Rendering voice chat'), // Add logging
-        (<VoiceChatScreen />))}
-      {currentScreen === 'results' &&
-        (console.log('Rendering results screen'), // Add logging
-        (<ResultsScreen />))}
+      {/* Landing Screen */}
+      {currentScreen === 'landing' && (
+        <LandingScreen
+          onStart={async () => {
+            try {
+              // await connectConversation();
+              // setCurrentScreen('voiceChat');
+              console.log('Button clicked - immediate feedback');
+              handleStart();
+            } catch (err) {
+              setError((err as Error).message);
+            }
+          }}
+        />
+      )}
+
+      {/* Voice Chat Screen */}
+      {currentScreen === 'voiceChat' && (
+        <VoiceChatScreen
+          isConnected={isConnected}
+          isRecording={isRecording}
+          canPushToTalk={canPushToTalk}
+          showConversation={showConversation}
+          hasError={!!error}
+          errorMessage={error}
+          items={items}
+          startRecording={startRecording}
+          stopRecording={stopRecording}
+          setShowConversation={setShowConversation}
+          handleManualReportGeneration={async () => {
+            try {
+              await handleManualReportGeneration();
+              setCurrentScreen('results');
+            } catch (err) {
+              setError((err as Error).message);
+            }
+          }}
+          wavRecorderRef={wavRecorderRef}
+          wavStreamPlayerRef={wavStreamPlayerRef}
+        />
+      )}
+
+      {/* Results Screen */}
+      {currentScreen === 'results' && (
+        <ResultsScreen
+          trials={trials}
+          isLoadingTrials={isLoadingTrials}
+          memoryKv={memoryKv}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          connectConversation={connectConversation}
+          setCurrentScreen={setCurrentScreen}
+          finalReport={finalReport}
+          isReportModalOpen={isReportModalOpen}
+          setIsReportModalOpen={setIsReportModalOpen}
+        />
+      )}
+
+      {/* Error Boundary */}
+      <ErrorDisplay error={error} />
     </div>
   );
 }
