@@ -8,8 +8,7 @@
  * This will also require you to set OPENAI_API_KEY= in a `.env` file.
  * You can run it with `npm run relay`, in parallel with `npm start`.
  */
-const LOCAL_RELAY_SERVER_URL: string =
-  import.meta.env.REACT_APP_LOCAL_RELAY_SERVER_URL || "";
+
 import { useEffect, useRef, useCallback, useState } from "react";
 
 import { RealtimeClient } from "@openai/realtime-api-beta";
@@ -25,6 +24,7 @@ import { Button } from "@/components/button/Button";
 import { Toggle } from "@/components/toggle/Toggle";
 
 import "./ConsolePage.scss";
+
 
 /**
  * Type for all event logs.
@@ -58,6 +58,8 @@ interface StudyInfo {
  * manages the state of the conversation, and renders the UI.
  */
 export function ConsolePage() {
+  const LOCAL_RELAY_SERVER_URL: string = import.meta.env.PUBLIC_RELAY_SERVER_URL || "";  
+
   const [apiKey, setApiKey] = useState<string>("");
   /**
    * Ask user for API Key.
@@ -112,20 +114,27 @@ export function ConsolePage() {
   //   ),
   // );
   // Initialize client ref with null and update it when apiKey is available
-  const clientRef = useRef<RealtimeClient | null>(null);
+  const clientRef = useRef<RealtimeClient>(new RealtimeClient({ url: LOCAL_RELAY_SERVER_URL }));
 
-  useEffect(() => {
-    if (apiKey) {
-      clientRef.current = new RealtimeClient(
-        LOCAL_RELAY_SERVER_URL
-          ? { url: LOCAL_RELAY_SERVER_URL }
-          : {
-              apiKey: apiKey,
-              dangerouslyAllowAPIKeyInBrowser: true,
-            },
-      );
-    }
-  }, [apiKey]);
+  // useEffect(() => {
+  //   if (LOCAL_RELAY_SERVER_URL) {
+  //     clientRef.current = new RealtimeClient({ url: LOCAL_RELAY_SERVER_URL });
+  //   }
+  //   else if (apiKey) {
+  //     clientRef.current = new RealtimeClient(
+  //       LOCAL_RELAY_SERVER_URL
+  //         ? { url: LOCAL_RELAY_SERVER_URL }
+  //         : {
+  //             apiKey: apiKey,
+  //             dangerouslyAllowAPIKeyInBrowser: true,
+  //           },
+  //     );
+  //     // clientRef.current = new RealtimeClient(
+  //     //   { url: LOCAL_RELAY_SERVER_URL }
+  //     // );
+  //     console.log(`jkd 000 clientRef.current`, clientRef.current);
+  //   }
+  // }, [apiKey, LOCAL_RELAY_SERVER_URL]);
   /**
    * References for:
    * - Rendering audio visualization (canvas)
@@ -573,7 +582,8 @@ export function ConsolePage() {
           {/* <img src="/openai-logomark.svg" alt="OpenAI Logo" /> */}
           <span>Clinical Trials Research Assistant</span>
         </div>
-        <div className="content-api-key">
+        
+        {/* <div className="content-api-key">
           {!LOCAL_RELAY_SERVER_URL && (
             <Button
               // icon={Edit}
@@ -583,7 +593,7 @@ export function ConsolePage() {
               onClick={() => resetAPIKey()}
             />
           )}
-        </div>
+        </div> */}
       </div>
       <div className="content-main">
         <div className="content-logs">
