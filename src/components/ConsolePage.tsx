@@ -60,26 +60,26 @@ interface StudyInfo {
 export function ConsolePage() {
   const LOCAL_RELAY_SERVER_URL: string = import.meta.env.PUBLIC_RELAY_SERVER_URL || "";  
 
-  const [apiKey, setApiKey] = useState<string>("");
+  // const [apiKey, setApiKey] = useState<string>("");
   /**
    * Ask user for API Key.
    * If we're using the local relay server, we don't need this.
    */
 
   // Fetch API key on component mount
-  useEffect(() => {
-    async function fetchConfig() {
-      try {
-        const response = await fetch("/api/config");
-        const data = await response.json();
-        console.log("jkd fetchConfig", data);
-        setApiKey(data.apiKey);
-      } catch (error) {
-        console.error("Error fetching config:", error);
-      }
-    }
-    fetchConfig();
-  }, []);
+  // useEffect(() => {
+  //   async function fetchConfig() {
+  //     try {
+  //       const response = await fetch("/api/config");
+  //       const data = await response.json();
+  //       console.log("jkd fetchConfig", data);
+  //       setApiKey(data.apiKey);
+  //     } catch (error) {
+  //       console.error("Error fetching config:", error);
+  //     }
+  //   }
+  //   fetchConfig();
+  // }, []);
 
   // const apiKey = import.meta.env.PUBLIC_OPENAI_API_KEY;
   // const apiKey = LOCAL_RELAY_SERVER_URL
@@ -245,7 +245,7 @@ export function ConsolePage() {
     if (client.getTurnDetectionType() === "server_vad") {
       await wavRecorder.record((data) => client.appendInputAudio(data.mono));
     }
-  }, [apiKey, clientRef, wavRecorderRef, wavStreamPlayerRef]);
+  }, [clientRef, wavRecorderRef, wavStreamPlayerRef]);
 
   /**
    * Disconnect and reset conversation state
@@ -268,7 +268,7 @@ export function ConsolePage() {
 
     const wavStreamPlayer = wavStreamPlayerRef.current;
     wavStreamPlayer.interrupt();
-  }, [apiKey, clientRef, wavRecorderRef, wavStreamPlayerRef]);
+  }, [clientRef, wavRecorderRef, wavStreamPlayerRef]);
 
   /**
    * Delete a conversation item by its ID.
@@ -505,11 +505,11 @@ export function ConsolePage() {
 
     // Update session after adding tools
     client.updateSession();
-  }, [apiKey, clientRef]);
+  }, [clientRef]);
 
   useEffect(() => {
     addTools();
-  }, [apiKey, addTools]);
+  }, [addTools]);
 
   /**
    * Core RealtimeClient and audio capture setup
@@ -570,7 +570,7 @@ export function ConsolePage() {
       // cleanup; resets to defaults
       client.reset();
     };
-  }, [apiKey, clientRef, wavStreamPlayerRef, wavRecorderRef]);
+  }, [clientRef, wavStreamPlayerRef, wavRecorderRef]);
 
   /**
    * Render the application
