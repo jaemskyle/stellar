@@ -6,21 +6,19 @@
 ├── eslint.config.mjs
 ├── package-lock.json
 ├── package.json
-├── package_og.json
 ├── patches
 │   └── @openai+realtime-api-beta+0.0.0.patch
 ├── project_dir_tree.txt
 ├── public
 │   └── favicon.svg
 ├── src
-│   ├── App.tsx
+│   ├── App.tsx  # Reference template / scaffolding for the new UI/UX layer
 │   ├── components
 │   │   ├── Card.astro
 │   │   ├── ConsolePage.scss
-│   │   ├── ConsolePage.tsx
-│   │   ├── ConsolePageOG.tsx
+│   │   ├── ConsolePageOG.tsx  # This was the original console / component not being used currently
 │   │   ├── Logo.tsx
-│   │   ├── MainPage.tsx
+│   │   ├── MainPage.tsx  # New main page/component with new UI/UX layer
 │   │   ├── Message.tsx
 │   │   ├── ProductDisplay.tsx
 │   │   ├── ReportModal.tsx
@@ -78,10 +76,8 @@
 │   │   └── globals.css
 │   └── utils
 │       ├── model_instructions.js
-│       ├── timeUtils.ts
 │       └── wav_renderer.ts
 ├── tailwind.config.mjs
 ├── tsconfig.json
-└── tsconfig_og.json
 
-18 directories, 67 files
+18 directories, 63 files
