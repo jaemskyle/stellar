@@ -1,3 +1,4 @@
+// src/components/ResultsScreen.tsx
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -25,23 +26,20 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 // Define interfaces
 interface ResultsScreenProps {
-  trials: StudyInfo[];
-  isLoadingTrials: boolean;
-  memoryKv: Record<string, any>;
   finalReport: TrialsReport | null;
+  isLoadingTrials: boolean;
   onStartNewSearch: () => Promise<void>;
-  onExportReport: () => void;
 }
 
+// Subcomponents (internal)
 interface TrialCardProps {
   trial: StudyInfo;
   isExpanded: boolean;
   onToggle: () => void;
 }
 
-// Sub-components
 const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
-  const getStatusStyles = (status: string) => {
+  const getStatusStyles = useCallback((status: string) => {
     switch (status) {
       case 'RECRUITING':
         return 'bg-green-100 text-green-800';
@@ -52,7 +50,7 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
       default:
         return 'bg-gray-100 text-gray-800';
     }
-  };
+  }, []);
 
   return (
     <span
@@ -68,7 +66,6 @@ const TrialCard: React.FC<TrialCardProps> = ({
   isExpanded,
   onToggle,
 }) => {
-  // Logging for debugging
   useEffect(() => {
     console.debug('TrialCard rendered:', {
       nctNumber: trial.nctNumber,
@@ -107,6 +104,18 @@ const TrialCard: React.FC<TrialCardProps> = ({
             >
               <ChevronDown className="w-5 h-5 text-gray-400" />
             </motion.button>
+          </div>
+          {/* Actions */}
+          <div className="flex justify-end pt-2">
+            <a
+              href={`https://clinicaltrials.gov/study/${trial.nctNumber}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800"
+            >
+              View on ClinicalTrials.gov
+              <ExternalLink className="w-4 h-4" />
+            </a>
           </div>
         </div>
       </div>
@@ -188,19 +197,6 @@ const TrialCard: React.FC<TrialCardProps> = ({
                   {trial.eligibilityModule.eligibilityCriteria}
                 </p>
               </div>
-
-              {/* Actions */}
-              <div className="flex justify-end pt-2">
-                <a
-                  href={`https://clinicaltrials.gov/study/${trial.nctNumber}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800"
-                >
-                  View on ClinicalTrials.gov
-                  <ExternalLink className="w-4 h-4" />
-                </a>
-              </div>
             </div>
           </motion.div>
         )}
@@ -209,81 +205,136 @@ const TrialCard: React.FC<TrialCardProps> = ({
   );
 };
 
-const UserContext: React.FC<{ report: TrialsReport }> = ({ report }) => {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Your Information</CardTitle>
-        <CardDescription>
-          Profile used for finding relevant trials
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <h4 className="font-medium text-gray-900">Condition</h4>
-            <p className="text-gray-700">{report.userContext.condition}</p>
-          </div>
-          <div>
-            <h4 className="font-medium text-gray-900">Purpose</h4>
-            <p className="text-gray-700">{report.userContext.purpose}</p>
-          </div>
-          {report.userContext.demographics && (
-            <>
-              {report.userContext.demographics.age && (
-                <div>
-                  <h4 className="font-medium text-gray-900">Age</h4>
-                  <p className="text-gray-700">
-                    {report.userContext.demographics.age}
-                  </p>
-                </div>
-              )}
-              {report.userContext.demographics.sex && (
-                <div>
-                  <h4 className="font-medium text-gray-900">Sex</h4>
-                  <p className="text-gray-700">
-                    {report.userContext.demographics.sex}
-                  </p>
-                </div>
-              )}
-            </>
-          )}
+const UserContext: React.FC<{ report: TrialsReport }> = ({ report }) => (
+  <Card>
+    <CardHeader>
+      <CardTitle>Your Information</CardTitle>
+      <CardDescription>
+        Profile used for finding relevant trials
+      </CardDescription>
+    </CardHeader>
+    <CardContent>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <h4 className="font-medium text-gray-900">Condition</h4>
+          <p className="text-gray-700">{report.userContext.condition}</p>
         </div>
-      </CardContent>
-    </Card>
-  );
-};
+        <div>
+          <h4 className="font-medium text-gray-900">Purpose</h4>
+          <p className="text-gray-700">{report.userContext.purpose}</p>
+        </div>
+        {report.userContext.demographics && (
+          <>
+            {report.userContext.demographics.age && (
+              <div>
+                <h4 className="font-medium text-gray-900">Age</h4>
+                <p className="text-gray-700">
+                  {report.userContext.demographics.age}
+                </p>
+              </div>
+            )}
+            {report.userContext.demographics.sex && (
+              <div>
+                <h4 className="font-medium text-gray-900">Sex</h4>
+                <p className="text-gray-700">
+                  {report.userContext.demographics.sex}
+                </p>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </CardContent>
+  </Card>
+);
 
 // Main ResultsScreen component
 const ResultsScreen: React.FC<ResultsScreenProps> = ({
-  trials,
-  isLoadingTrials,
-  memoryKv,
   finalReport,
+  isLoadingTrials,
   onStartNewSearch,
-  onExportReport,
 }) => {
-  // State
+  // Component state
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [expandedTrials, setExpandedTrials] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState('trials');
 
-  // Refs for logging
+  // Refs for debugging/logging
   const renderCountRef = useRef(0);
+  const componentMountTimeRef = useRef(new Date());
 
-  // Logging
+  // Effects and Logging
   useEffect(() => {
     renderCountRef.current += 1;
     console.debug('ResultsScreen rendered:', {
       renderCount: renderCountRef.current,
-      trialsCount: trials.length,
+      mountedAt: componentMountTimeRef.current,
+      trialsCount: finalReport?.trials.length ?? 0,
       isLoading: isLoadingTrials,
       activeTab,
     });
   });
 
+  // Memoized handlers
+  const handleExport = useCallback(() => {
+    try {
+      if (!finalReport) {
+        console.warn('Export attempted with no report available');
+        return;
+      }
+
+      console.debug('Exporting report:', {
+        timestamp: finalReport.timestamp,
+        trialsCount: finalReport.trials.length,
+      });
+
+      const exportData = {
+        ...finalReport,
+        exportDate: new Date().toISOString(),
+        metadata: {
+          ...finalReport.metadata,
+          exportedAt: new Date().toISOString(),
+        },
+      };
+
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+        type: 'application/json',
+      });
+      const url = URL.createObjectURL(blob);
+      const fileName = `clinical-trials-report-${finalReport.timestamp.split('T')[0]}.json`;
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      console.debug('Report exported successfully:', { fileName });
+    } catch (error) {
+      console.error('Error exporting report:', error);
+      // Could add error handling UI here
+    }
+  }, [finalReport]);
+
+  // Handlers
+  const toggleTrialExpansion = useCallback((nctNumber: string) => {
+    setExpandedTrials(prev => {
+      const next = new Set(prev);
+      if (next.has(nctNumber)) {
+        next.delete(nctNumber);
+      } else {
+        next.add(nctNumber);
+      }
+      return next;
+    });
+  }, []);
+
+  // Computed values
   // Filter trials based on search and status
+  const trials = finalReport?.trials ?? [];
   const filteredTrials = trials.filter(trial => {
     const matchesSearch =
       searchTerm === '' ||
@@ -301,19 +352,6 @@ const ResultsScreen: React.FC<ResultsScreenProps> = ({
   const uniqueStatuses = Array.from(
     new Set(trials.map(trial => trial.status))
   ).sort();
-
-  // Handlers
-  const toggleTrialExpansion = useCallback((nctNumber: string) => {
-    setExpandedTrials(prev => {
-      const next = new Set(prev);
-      if (next.has(nctNumber)) {
-        next.delete(nctNumber);
-      } else {
-        next.add(nctNumber);
-      }
-      return next;
-    });
-  }, []);
 
   // Render loading state
   if (isLoadingTrials) {
@@ -335,13 +373,35 @@ const ResultsScreen: React.FC<ResultsScreenProps> = ({
     );
   }
 
+  // Error state
+  if (!finalReport) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-6">
+        <Alert variant="destructive">
+          <AlertTitle>Error Loading Results</AlertTitle>
+          <AlertDescription>
+            Unable to display results. Please try starting a new search.
+          </AlertDescription>
+        </Alert>
+        <Button onClick={onStartNewSearch} className="mt-4">
+          Start Another Search
+        </Button>
+      </div>
+    );
+  }
+
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
+    <div className="flex flex-col flex-grow overflow-auto items-center max-w-5xl mx-auto px-4 py-8">
       {/* Header */}
       <div className="mb-8 text-center">
-        <h1 className="text-4xl font-bold mb-4">Clinical Trial Results</h1>
+        {/* <h1 className="text-4xl font-bold mb-4">Clinical Trial Results</h1> */}
+        <h1 className="text-4xl font-bold text-center mb-4">
+          Consult with your healthcare professional
+        </h1>
         <p className="text-xl text-gray-600 mb-6">
-          Found {trials.length} trials matching your criteria
+          We found <em>X</em> trials. Here are the top {trials.length} closest
+          matches.
+          {/* trials matching your criteria */}
         </p>
 
         <Alert className="mb-6">
@@ -359,16 +419,16 @@ const ResultsScreen: React.FC<ResultsScreenProps> = ({
           className="bg-black hover:bg-gray-800 text-white"
         >
           <Mic className="w-4 h-4 mr-2" />
-          Start New Search
+          Start Another Search
         </Button>
       </div>
 
       {/* Main Content */}
-      <div className="space-y-6">
+      <div className="space-y-6 border border-spacing-1 rounded-xl flex flex-col flex-grow overflow-auto p-1">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="trials">Clinical Trials</TabsTrigger>
-            <TabsTrigger value="profile">Your Profile</TabsTrigger>
+            <TabsTrigger value="trials">Results</TabsTrigger>
+            <TabsTrigger value="profile">Your Information</TabsTrigger>
           </TabsList>
 
           <TabsContent value="trials" className="space-y-6">
@@ -402,6 +462,7 @@ const ResultsScreen: React.FC<ResultsScreenProps> = ({
             </div>
 
             {/* Trials List */}
+            {/* <ScrollArea className="h-[600px]"> */}
             <ScrollArea className="h-[600px]">
               <div className="space-y-4">
                 {filteredTrials.length === 0 ? (
@@ -426,7 +487,7 @@ const ResultsScreen: React.FC<ResultsScreenProps> = ({
             {/* Export Report Button */}
             <div className="flex justify-end pt-4">
               <Button
-                onClick={onExportReport}
+                onClick={handleExport}
                 className="inline-flex items-center gap-2"
                 variant="outline"
               >

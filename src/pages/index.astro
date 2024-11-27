@@ -1,4 +1,5 @@
 ---
+// src/pages/index.astro
 import '@/styles/globals.css';
 import Layout from '../layouts/Layout.astro';
 import Card from '../components/Card.astro';
@@ -31,21 +32,26 @@ const title = debugMode
 </SiteLayout>
  -->
 <Layout title="Yara - Healthcare Assistant">
-  <main>
-    <nav class="text-black">
-      <SignedOut>
-        <SignInButton mode="modal" />
-      </SignedOut>
-      <SignedIn>
-        <UserButton />
-        <TestButton client:load>Test shadcn/ui Button</TestButton>
-        <MainPage client:load />
-      </SignedIn>
-      <!-- link to /subscribe -->
-      <a href="/subscribe">Subscribe</a>
-    </nav>
+  <div class="min-h-screen flex flex-col">
+    <!-- Added wrapper div -->
+    <main class="flex-1 flex flex-col">
+      <!-- Changed to flex-1 -->
+      <!-- <nav class="text-black"> -->
+      <nav class="flex-1 flex flex-col text-black">
+        <SignedOut>
+          <SignInButton mode="modal" />
+        </SignedOut>
+        <SignedIn>
+          <UserButton />
+          <!-- <TestButton client:load>Test shadcn/ui Button</TestButton> -->
+          <MainPage client:load />
+        </SignedIn>
+        <!-- link to /subscribe -->
+        <a href="/subscribe" class="fixed bottom-4 right-4">Subscribe</a>
+        <!-- Fixed positioning for subscribe link -->
+      </nav>
 
-    <!-- <main>
+      <!-- <main>
       <nav class="text-black">
         <SignedOut>
           <SignInButton mode="modal" />
@@ -71,12 +77,14 @@ const title = debugMode
             )
           }
         </SignedIn>
-        <!-- link to /subscribe -->-->
-    <!-- <a href="/subscribe">Subscribe</a> -->
-    <!-- </main> -->
-    /* -------------------------------------------------------------- */
-    <!-- <VoiceChat client:load/> -->
-    <!-- <svg
+        <!-- link to /subscribe -->
+      <!-- <a href="/subscribe">Subscribe</a> -->
+      <!-- </main> -->
+
+      <!----------------------------------------------------------------->
+
+      <!-- <VoiceChat client:load/> -->
+      <!-- <svg
 			class="astro-a"
 			width="495"
 			height="623"
@@ -131,67 +139,82 @@ const title = debugMode
 				body="Come say hi to our amazing Discord community. ❤️"
 			/>
 		</ul> -->
-  </main>
 
-  <style>
-    main {
-      margin: auto;
-      padding: 1rem;
-      width: 800px;
-      max-width: calc(100% - 2rem);
-      color: white;
-      font-size: 20px;
-      line-height: 1.6;
-    }
-    .astro-a {
-      position: absolute;
-      top: -32px;
-      left: 50%;
-      transform: translatex(-50%);
-      width: 220px;
-      height: auto;
-      z-index: -1;
-    }
-    h1 {
-      font-size: 4rem;
-      font-weight: 700;
-      line-height: 1;
-      text-align: center;
-      margin-bottom: 1em;
-    }
-    .text-gradient {
-      background-image: var(--accent-gradient);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-size: 400%;
-      background-position: 0%;
-    }
-    .instructions {
-      margin-bottom: 2rem;
-      border: 1px solid rgba(var(--accent-light), 25%);
-      background: linear-gradient(
-        rgba(var(--accent-dark), 66%),
-        rgba(var(--accent-dark), 33%)
-      );
-      padding: 1.5rem;
-      border-radius: 8px;
-    }
-    .instructions code {
-      font-size: 0.8em;
-      font-weight: bold;
-      background: rgba(var(--accent-light), 12%);
-      color: rgb(var(--accent-light));
-      border-radius: 4px;
-      padding: 0.3em 0.4em;
-    }
-    .instructions strong {
-      color: rgb(var(--accent-light));
-    }
-    .link-card-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(24ch, 1fr));
-      gap: 2rem;
-      padding: 0;
-    }
-  </style>
+      <!----------------------------------------------------------------->
+    </main>
+
+    <style>
+      main {
+        margin: auto;
+        padding: 1rem;
+        width: 800px;
+        max-width: calc(100% - 2rem);
+        color: white;
+        font-size: 20px;
+        line-height: 1.6;
+      }
+      .astro-a {
+        position: absolute;
+        top: -32px;
+        left: 50%;
+        transform: translatex(-50%);
+        width: 220px;
+        height: auto;
+        z-index: -1;
+      }
+      h1 {
+        font-size: 4rem;
+        font-weight: 700;
+        line-height: 1;
+        text-align: center;
+        margin-bottom: 1em;
+      }
+      .text-gradient {
+        background-image: var(--accent-gradient);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-size: 400%;
+        background-position: 0%;
+      }
+      .instructions {
+        margin-bottom: 2rem;
+        border: 1px solid rgba(var(--accent-light), 25%);
+        background: linear-gradient(
+          rgba(var(--accent-dark), 66%),
+          rgba(var(--accent-dark), 33%)
+        );
+        padding: 1.5rem;
+        border-radius: 8px;
+      }
+      .instructions code {
+        font-size: 0.8em;
+        font-weight: bold;
+        background: rgba(var(--accent-light), 12%);
+        color: rgb(var(--accent-light));
+        border-radius: 4px;
+        padding: 0.3em 0.4em;
+      }
+      .instructions strong {
+        color: rgb(var(--accent-light));
+      }
+      .link-card-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(24ch, 1fr));
+        gap: 2rem;
+        padding: 0;
+      }
+
+      /* ------------------------------------------------------------ */
+
+      /* :global(body) {
+        margin: 0;
+        padding: 0;
+        min-height: 100vh;
+      }
+
+      :global(#app) {
+        min-height: 100vh;
+      } */
+    </style>
+  </div>
 </Layout>

@@ -383,6 +383,8 @@ export default function MainPage() {
     }
 
     try {
+      console.debug('Generating report manually');
+
       // Generate report first
       const report = reportHandler.generateReport(
         memoryKv,
@@ -399,7 +401,10 @@ export default function MainPage() {
       // generation
       setCurrentScreen('results');
       console.log('Results screen opened');
-
+      console.debug('Manual report generation complete:', {
+        timestamp: report.timestamp,
+        trialsCount: report.trials.length,
+      });
       console.log('Report generated and conversation ended by user');
     } catch (error) {
       console.error('Error during report generation:', error);
@@ -1133,97 +1138,97 @@ export default function MainPage() {
   /* ---------------------------------------------------------------- */
   /* ---------------------------------------------------------------- */
 
-  /**
-   * ResultsScreen component displays the results of clinical trials and allows users to interact with the application.
-   *
-   * @param {Object} props - The properties object.
-   * @param {StudyInfo[]} props.trials - An array of clinical trial information.
-   * @param {boolean} props.isLoadingTrials - A flag indicating if the trials are currently being loaded.
-   * @param {Object.<string, any>} props.memoryKv - A key-value store for user information.
-   * @param {string} props.activeTab - The currently active tab.
-   * @param {function(string): void} props.setActiveTab - Function to set the active tab.
-   * @param {function(): Promise<void>} props.connectConversation - Function to initiate a conversation.
-   * @param {function(string): void} props.setCurrentScreen - Function to set the current screen.
-   * @param {TrialsReport | null} props.finalReport - The final report of the trials.
-   *
-   * @returns {JSX.Element} The rendered component.
-   */
-  const ResultsScreen = ({
-    trials,
-    isLoadingTrials,
-    memoryKv,
-    activeTab,
-    setActiveTab,
-    connectConversation,
-    setCurrentScreen,
-    finalReport,
-    // isReportModalOpen,
-    // setIsReportModalOpen,
-  }: {
-    trials: StudyInfo[];
-    isLoadingTrials: boolean;
-    memoryKv: { [key: string]: any };
-    activeTab: string;
-    setActiveTab: (tab: string) => void;
-    connectConversation: () => Promise<void>;
-    setCurrentScreen: (screen: string) => void;
-    finalReport: TrialsReport | null;
-    // isReportModalOpen: boolean;
-    // setIsReportModalOpen: (open: boolean) => void;
-  }) => (
-    <div className="flex flex-col flex-grow overflow-auto items-center p-6">
-      <h1 className="text-4xl font-bold text-center mb-4">
-        Clinical Trial Results
-        <br />
-        Consult with your healthcare professional
-      </h1>
-      <p className="text-gray-600 text-center mb-8">
-        We found {trials.length} matching trials
-        <br />
-        {isLoadingTrials
-          ? 'Loading trials...'
-          : `Found ${trials.length} matching trials`}
-      </p>
+  // /**
+  //  * ResultsScreen component displays the results of clinical trials and allows users to interact with the application.
+  //  *
+  //  * @param {Object} props - The properties object.
+  //  * @param {StudyInfo[]} props.trials - An array of clinical trial information.
+  //  * @param {boolean} props.isLoadingTrials - A flag indicating if the trials are currently being loaded.
+  //  * @param {Object.<string, any>} props.memoryKv - A key-value store for user information.
+  //  * @param {string} props.activeTab - The currently active tab.
+  //  * @param {function(string): void} props.setActiveTab - Function to set the active tab.
+  //  * @param {function(): Promise<void>} props.connectConversation - Function to initiate a conversation.
+  //  * @param {function(string): void} props.setCurrentScreen - Function to set the current screen.
+  //  * @param {TrialsReport | null} props.finalReport - The final report of the trials.
+  //  *
+  //  * @returns {JSX.Element} The rendered component.
+  //  */
+  // const ResultsScreen = ({
+  //   trials,
+  //   isLoadingTrials,
+  //   memoryKv,
+  //   activeTab,
+  //   setActiveTab,
+  //   connectConversation,
+  //   setCurrentScreen,
+  //   finalReport,
+  //   // isReportModalOpen,
+  //   // setIsReportModalOpen,
+  // }: {
+  //   trials: StudyInfo[];
+  //   isLoadingTrials: boolean;
+  //   memoryKv: { [key: string]: any };
+  //   activeTab: string;
+  //   setActiveTab: (tab: string) => void;
+  //   connectConversation: () => Promise<void>;
+  //   setCurrentScreen: (screen: string) => void;
+  //   finalReport: TrialsReport | null;
+  //   // isReportModalOpen: boolean;
+  //   // setIsReportModalOpen: (open: boolean) => void;
+  // }) => (
+  //   <div className="flex flex-col flex-grow overflow-auto items-center p-6">
+  //     <h1 className="text-4xl font-bold text-center mb-4">
+  //       Clinical Trial Results
+  //       <br />
+  //       Consult with your healthcare professional
+  //     </h1>
+  //     <p className="text-gray-600 text-center mb-8">
+  //       We found {trials.length} matching trials
+  //       <br />
+  //       {isLoadingTrials
+  //         ? 'Loading trials...'
+  //         : `Found ${trials.length} matching trials`}
+  //     </p>
 
-      <Button
-        className="mb-8 bg-gray-900 text-white"
-        onClick={async () => {
-          await connectConversation();
-          setCurrentScreen('voiceChat');
-        }}
-      >
-        <Mic className="w-4 h-4 mr-2" />
-        Start another search
-      </Button>
+  //     <Button
+  //       className="mb-8 bg-gray-900 text-white"
+  //       onClick={async () => {
+  //         await connectConversation();
+  //         setCurrentScreen('voiceChat');
+  //       }}
+  //     >
+  //       <Mic className="w-4 h-4 mr-2" />
+  //       Start another search
+  //     </Button>
 
-      <div className="w-full max-w-2xl">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="results">Results</TabsTrigger>
-            <TabsTrigger value="info">Your information</TabsTrigger>
-          </TabsList>
-          <TabsContent value="results">
-            <ScrollArea className="h-[400px] rounded-md border p-4">
-              <TrialsDisplay trials={trials} isLoading={isLoadingTrials} />
-            </ScrollArea>
-          </TabsContent>
-          <TabsContent value="info">
-            <div className="rounded-md border p-4">
-              <pre className="text-sm whitespace-pre-wrap">
-                {JSON.stringify(memoryKv, null, 2)}
-              </pre>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </div>
+  //     <div className="w-full max-w-2xl">
+  //       <Tabs value={activeTab} onValueChange={setActiveTab}>
+  //         <TabsList className="grid w-full grid-cols-2">
+  //           <TabsTrigger value="results">Results</TabsTrigger>
+  //           <TabsTrigger value="info">Your information</TabsTrigger>
+  //         </TabsList>
+  //         <TabsContent value="results">
+  //           <ScrollArea className="h-[400px] rounded-md border p-4">
+  //             <TrialsDisplay trials={trials} isLoading={isLoadingTrials} />
+  //           </ScrollArea>
+  //         </TabsContent>
+  //         <TabsContent value="info">
+  //           <div className="rounded-md border p-4">
+  //             <pre className="text-sm whitespace-pre-wrap">
+  //               {JSON.stringify(memoryKv, null, 2)}
+  //             </pre>
+  //           </div>
+  //         </TabsContent>
+  //       </Tabs>
+  //     </div>
 
-      {/* <ReportModal
-        report={finalReport}
-        isOpen={isReportModalOpen}
-        onClose={() => setIsReportModalOpen(false)}
-      /> */}
-    </div>
-  );
+  //     {/* <ReportModal
+  //       report={finalReport}
+  //       isOpen={isReportModalOpen}
+  //       onClose={() => setIsReportModalOpen(false)}
+  //     /> */}
+  //   </div>
+  // );
 
   // Add error handling state
   const [error, setError] = useState<string | null>(null);
@@ -1260,7 +1265,7 @@ export default function MainPage() {
       </Button>
 
       {/* Settings Menu */}
-      {showSettings && (
+      {showSettings && currentScreen !== 'results' && (
         <SettingsMenu
           resetAPIKey={resetAPIKey}
           changeTurnEndType={changeTurnEndType}
@@ -1314,16 +1319,18 @@ export default function MainPage() {
       {/* Results Screen */}
       {currentScreen === 'results' && (
         <ResultsScreen
-          trials={trials}
-          isLoadingTrials={isLoadingTrials}
-          memoryKv={memoryKv}
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          connectConversation={connectConversation}
-          setCurrentScreen={setCurrentScreen}
           finalReport={finalReport}
-          isReportModalOpen={isReportModalOpen}
-          setIsReportModalOpen={setIsReportModalOpen}
+          isLoadingTrials={isLoadingTrials}
+          onStartNewSearch={async () => {
+            try {
+              console.debug('Starting new search from results screen');
+              await connectConversation();
+              setCurrentScreen('voiceChat');
+            } catch (error) {
+              console.error('Error starting new search:', error);
+              // Could add error handling UI here
+            }
+          }}
         />
       )}
 
