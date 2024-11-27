@@ -1,13 +1,13 @@
 // @ts-check
-import { defineConfig, envField } from "astro/config";
+import { defineConfig, envField } from 'astro/config';
+import dotenv from 'dotenv';
+// Load environment variables from a .env file
+dotenv.config({ override: true });
 
-import react from "@astrojs/react";
-
-import tailwind from "@astrojs/tailwind";
-
-import vercel from "@astrojs/vercel/serverless";
-
-import clerk from "@clerk/astro";
+import react from '@astrojs/react';
+import tailwind from '@astrojs/tailwind';
+import vercel from '@astrojs/vercel/serverless';
+import clerk from '@clerk/astro';
 
 // https://astro.build/config
 export default defineConfig({
@@ -18,11 +18,11 @@ export default defineConfig({
       applyBaseStyles: false,
     }),
   ],
-  output: "server",
+  output: 'server',
   adapter: vercel(),
   vite: {
     define: {
-      "process.env.OPENAI_API_KEY": JSON.stringify(process.env.OPENAI_API_KEY),
+      'process.env.OPENAI_API_KEY': JSON.stringify(process.env.OPENAI_API_KEY),
     },
   },
 });

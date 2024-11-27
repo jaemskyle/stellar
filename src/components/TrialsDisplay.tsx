@@ -1,22 +1,23 @@
-import React from "react";
+import React from 'react';
+import type { StudyInfo } from '../lib/ctg-tool';
 
-// Define the type for a single trial
-interface Trial {
-  studyTitle: string;
-  nctNumber: string;
-  status: string;
-  startDate: string;
-  completionDate: string;
-  conditions: string;
-  interventions: string;
-  sponsor: string;
-  studyType: string;
-  briefSummary: string;
-}
+// // Define the type for a single trial
+// interface StudyInfo {
+//   studyTitle: string;
+//   nctNumber: string;
+//   status: string;
+//   startDate: string;
+//   completionDate: string;
+//   conditions: string;
+//   interventions: string;
+//   sponsor: string;
+//   studyType: string;
+//   briefSummary: string;
+// }
 
 // Define the props interface for the component
 interface TrialsDisplayProps {
-  trials: Trial[];
+  trials: StudyInfo[];
   isLoading?: boolean;
 }
 
@@ -47,7 +48,7 @@ const TrialsDisplay: React.FC<TrialsDisplayProps> = ({
 
   return (
     <div className="w-full max-h-96 overflow-y-auto">
-      {trials.map((trial) => (
+      {trials.map(trial => (
         <div
           key={trial.nctNumber}
           className="mb-4 p-4 border border-gray-200 rounded-lg"
@@ -56,18 +57,18 @@ const TrialsDisplay: React.FC<TrialsDisplayProps> = ({
 
           <div className="grid grid-cols-2 gap-2 mb-2 text-sm">
             <div>
-              <span className="font-semibold">NCT Number:</span>{" "}
+              <span className="font-semibold">NCT Number:</span>{' '}
               {trial.nctNumber}
             </div>
             <div>
               <span className="font-semibold">Status:</span> {trial.status}
             </div>
             <div>
-              <span className="font-semibold">Start Date:</span>{" "}
+              <span className="font-semibold">Start Date:</span>{' '}
               {trial.startDate}
             </div>
             <div>
-              <span className="font-semibold">Completion Date:</span>{" "}
+              <span className="font-semibold">Completion Date:</span>{' '}
               {trial.completionDate}
             </div>
             <div className="col-span-2">
