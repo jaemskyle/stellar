@@ -1,16 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // src/components/MainPage.tsx
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { RealtimeClient } from '@openai/realtime-api-beta';
-import type { ItemType } from '@openai/realtime-api-beta/dist/lib/client.js';
-import { Mic, Eye, EyeOff, PhoneOff, MicOff, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { RealtimeClient } from '@openai/realtime-api-beta';
+import type { ItemType } from '@openai/realtime-api-beta/dist/lib/client.js';
+import { Eye, EyeOff, Mic, MicOff, PhoneOff, Settings } from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 // Import all the required utilities and tools
 import { WavRecorder, WavStreamPlayer } from '@/lib/wavtools/index.js';
-import { WavRenderer } from '@/utils/wav_renderer';
+// import { WavRenderer } from '@/utils/wav_renderer';
 import { instructions } from '@/utils/model_instructions.js';
 import {
   CTG_TOOL_DEFINITION,
@@ -18,14 +18,15 @@ import {
   type StudyInfo,
 } from '../lib/ctg-tool';
 import {
-  reportHandler,
   REPORT_TOOL_DEFINITION,
+  reportHandler,
   type TrialsReport,
 } from '../lib/report-handler';
 
 // Import components
+import ResultsScreen from './ResultsScreen';
+// import ReportModal from '@/components/ReportModal';
 import TrialsDisplay from './TrialsDisplay';
-import ReportModal from '@/components/ReportModal';
 
 // Constants
 const LOCAL_RELAY_SERVER_URL: string =
@@ -85,7 +86,7 @@ export default function MainPage() {
   const [trials, setTrials] = useState<StudyInfo[]>([]);
   const [isLoadingTrials, setIsLoadingTrials] = useState(false);
   const [finalReport, setFinalReport] = useState<TrialsReport | null>(null);
-  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  // const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   // UI Refs
   const visualizerRef = useRef<HTMLCanvasElement>(null);
@@ -195,7 +196,8 @@ export default function MainPage() {
         );
 
         setFinalReport(report);
-        setIsReportModalOpen(true); // Open modal when assistant generates report
+        // setIsReportModalOpen(true); // Open modal when assistant generates report
+        setCurrentScreen('results');
 
         return {
           status: 'success',
@@ -389,11 +391,14 @@ export default function MainPage() {
       );
       setFinalReport(report);
       console.log('Report set:', report);
-      setIsReportModalOpen(true); // Open modal after report generation
-      console.log('Report modal opened');
 
-      // Then disconnect conversation
+      // First disconnect conversation
       await disconnectConversation();
+
+      // setIsReportModalOpen(true); // Open modal after report
+      // generation
+      setCurrentScreen('results');
+      console.log('Results screen opened');
 
       console.log('Report generated and conversation ended by user');
     } catch (error) {
@@ -734,54 +739,6 @@ export default function MainPage() {
   }, [currentScreen]);
 
   /* ---------------------------------------------------------------- */
-  /* ---------------------------------------------------------------- */
-  /* ---------------------------------------------------------------- */
-
-  // Settings Menu Component
-  const SettingsMenu = ({
-    resetAPIKey,
-    changeTurnEndType,
-    canPushToTalk,
-    fullCleanup,
-  }: {
-    resetAPIKey: () => void;
-    changeTurnEndType: (value: string) => Promise<void>;
-    canPushToTalk: boolean;
-    fullCleanup: () => Promise<void>;
-  }) => (
-    <div className="absolute top-16 right-4 z-20 bg-white rounded-lg shadow-lg p-4 min-w-[200px]">
-      <h3 className="font-semibold mb-4">Settings</h3>
-      <div className="space-y-4">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={resetAPIKey}
-          className="w-full justify-start"
-        >
-          Reset API Key
-        </Button>
-
-        <div className="space-y-2">
-          <label className="text-sm text-gray-600">Voice Detection Mode:</label>
-          <VadToggle
-            canPushToTalk={canPushToTalk}
-            onChange={value => changeTurnEndType(value)}
-          />
-        </div>
-
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={fullCleanup}
-          className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
-        >
-          Reset Everything
-        </Button>
-      </div>
-    </div>
-  );
-
-  /* ---------------------------------------------------------------- */
 
   const handleStart = async () => {
     console.log('Start button clicked - pre-try');
@@ -803,6 +760,8 @@ export default function MainPage() {
   };
 
   /* ---------------------------------------------------------------- */
+  /* ---------------------------------------------------------------- */
+  /* ---------------------------------------------------------------- */
 
   interface LandingScreenProps {
     onStart: () => Promise<void>;
@@ -810,7 +769,7 @@ export default function MainPage() {
 
   // UI Components
   const LandingScreen: React.FC<LandingScreenProps> = ({ onStart }) => (
-    <div className="flex flex-col items-center justify-center min-h-screen p-6 text-center">
+    <div className="flex flex-col flex-grow overflow-auto items-center justify-center p-6 text-center">
       <h1 className="text-5xl font-bold leading-tight mb-6">
         Find the Right Clinical Trial.
         <br />
@@ -975,6 +934,54 @@ export default function MainPage() {
     );
   };
 
+  /* ---------------------------------------------------------------- */
+  /* ---------------------------------------------------------------- */
+  /* ---------------------------------------------------------------- */
+
+  // Settings Menu Component
+  const SettingsMenu = ({
+    resetAPIKey,
+    changeTurnEndType,
+    canPushToTalk,
+    fullCleanup,
+  }: {
+    resetAPIKey: () => void;
+    changeTurnEndType: (value: string) => Promise<void>;
+    canPushToTalk: boolean;
+    fullCleanup: () => Promise<void>;
+  }) => (
+    <div className="absolute top-16 right-4 z-20 bg-white rounded-lg shadow-lg p-4 min-w-[200px]">
+      <h3 className="font-semibold mb-4">Settings</h3>
+      <div className="space-y-4">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={resetAPIKey}
+          className="w-full justify-start"
+        >
+          Reset API Key
+        </Button>
+
+        <div className="space-y-2">
+          <label className="text-sm text-gray-600">Voice Detection Mode:</label>
+          <VadToggle
+            canPushToTalk={canPushToTalk}
+            onChange={value => changeTurnEndType(value)}
+          />
+        </div>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={fullCleanup}
+          className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+        >
+          Reset Everything
+        </Button>
+      </div>
+    </div>
+  );
+
   // Enhanced VAD Toggle component
   const VadToggle = ({
     canPushToTalk,
@@ -1038,7 +1045,7 @@ export default function MainPage() {
     wavRecorderRef: React.RefObject<WavRecorder>;
     wavStreamPlayerRef: React.RefObject<WavStreamPlayer>;
   }) => (
-    <div className="flex flex-col items-center min-h-screen p-6">
+    <div className="flex flex-col flex-grow overflow-auto items-center p-6">
       <StatusIndicator
         isConnected={isConnected}
         isRecording={isRecording}
@@ -1121,6 +1128,26 @@ export default function MainPage() {
       </div>
     </div>
   );
+
+  /* ---------------------------------------------------------------- */
+  /* ---------------------------------------------------------------- */
+  /* ---------------------------------------------------------------- */
+
+  /**
+   * ResultsScreen component displays the results of clinical trials and allows users to interact with the application.
+   *
+   * @param {Object} props - The properties object.
+   * @param {StudyInfo[]} props.trials - An array of clinical trial information.
+   * @param {boolean} props.isLoadingTrials - A flag indicating if the trials are currently being loaded.
+   * @param {Object.<string, any>} props.memoryKv - A key-value store for user information.
+   * @param {string} props.activeTab - The currently active tab.
+   * @param {function(string): void} props.setActiveTab - Function to set the active tab.
+   * @param {function(): Promise<void>} props.connectConversation - Function to initiate a conversation.
+   * @param {function(string): void} props.setCurrentScreen - Function to set the current screen.
+   * @param {TrialsReport | null} props.finalReport - The final report of the trials.
+   *
+   * @returns {JSX.Element} The rendered component.
+   */
   const ResultsScreen = ({
     trials,
     isLoadingTrials,
@@ -1130,8 +1157,8 @@ export default function MainPage() {
     connectConversation,
     setCurrentScreen,
     finalReport,
-    isReportModalOpen,
-    setIsReportModalOpen,
+    // isReportModalOpen,
+    // setIsReportModalOpen,
   }: {
     trials: StudyInfo[];
     isLoadingTrials: boolean;
@@ -1141,12 +1168,14 @@ export default function MainPage() {
     connectConversation: () => Promise<void>;
     setCurrentScreen: (screen: string) => void;
     finalReport: TrialsReport | null;
-    isReportModalOpen: boolean;
-    setIsReportModalOpen: (open: boolean) => void;
+    // isReportModalOpen: boolean;
+    // setIsReportModalOpen: (open: boolean) => void;
   }) => (
-    <div className="flex flex-col items-center min-h-screen p-6">
+    <div className="flex flex-col flex-grow overflow-auto items-center p-6">
       <h1 className="text-4xl font-bold text-center mb-4">
-        Clinical Trial Results - Consult with your healthcare professional
+        Clinical Trial Results
+        <br />
+        Consult with your healthcare professional
       </h1>
       <p className="text-gray-600 text-center mb-8">
         We found {trials.length} matching trials
@@ -1188,20 +1217,38 @@ export default function MainPage() {
         </Tabs>
       </div>
 
-      <ReportModal
+      {/* <ReportModal
         report={finalReport}
         isOpen={isReportModalOpen}
         onClose={() => setIsReportModalOpen(false)}
-      />
+      /> */}
     </div>
   );
 
   // Add error handling state
   const [error, setError] = useState<string | null>(null);
 
+  /* ---------------------------------------------------------------- */
+  /* ---------------------------------------------------------------- */
+  /* ---------------------------------------------------------------- */
+
+  /* ---------------------------------------------------------------- */
+  /* ==================== log element dimensions ==================== */
+  /* ---------------------------------------------------------------- */
+  useEffect(() => {
+    const mainPageElement = document.getElementById('main-page-root');
+    if (mainPageElement) {
+      console.log('MainPage clientHeight:', mainPageElement.clientHeight);
+    }
+  }, []);
+  /* ---------------------------------------------------------------- */
+
   // Main render function with proper state handling
   return (
-    <div className="min-h-screen bg-white relative">
+    <div
+      id="main-page-root"
+      className="flex flex-col flex-1 flex-grow overflow-auto bg-white relative"
+    >
       {/* Settings Button */}
       <Button
         variant="ghost"
