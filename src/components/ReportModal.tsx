@@ -114,7 +114,9 @@ const ReportModal: React.FC<ReportModalProps> = ({
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-500">Purpose</p>
+                      <p className="text-sm font-medium text-gray-500">
+                        Purpose
+                      </p>
                       <p className="text-base text-gray-900">
                         {report.userContext.purpose}
                       </p>
@@ -230,7 +232,9 @@ const ReportModal: React.FC<ReportModalProps> = ({
                             <span className="font-medium text-gray-500">
                               Sponsor:
                             </span>{' '}
-                            <span className="text-gray-900">{trial.sponsor}</span>
+                            <span className="text-gray-900">
+                              {trial.sponsor}
+                            </span>
                           </div>
                           <div>
                             <span className="font-medium text-gray-500">
