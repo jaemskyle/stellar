@@ -1,11 +1,16 @@
 ---
-import { SignedIn, SignedOut, UserButton, SignInButton } from "@clerk/astro/components";
+import {
+  SignedIn,
+  SignedOut,
+  UserButton,
+  SignInButton,
+} from '@clerk/astro/components';
 
 interface Props {
   title?: string;
 }
 
-const { title = "Welcome to Stellar" } = Astro.props;
+const { title = 'Welcome to Stellar' } = Astro.props;
 ---
 
 <html lang="en">
