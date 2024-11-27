@@ -81,10 +81,12 @@ const TrialCard: React.FC<TrialCardProps> = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: 'spring', stiffness: 300, damping: 30 }}
     >
+      {/* Set up flex column layout */}
       <div
-        className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+        className="p-4 cursor-pointer hover:bg-gray-50 transition-colors flex flex-col justify-between h-full"
         onClick={onToggle}
       >
+        {/* Top content */}
         <div className="flex justify-between items-start gap-4">
           <div className="flex-grow">
             <h4 className="text-lg font-medium text-gray-900 mb-2">
@@ -424,14 +426,17 @@ const ResultsScreen: React.FC<ResultsScreenProps> = ({
       </div>
 
       {/* Main Content */}
-      <div className="space-y-6 border border-spacing-1 rounded-xl flex flex-col flex-grow overflow-auto p-1">
+      <div className="w-full space-y-6 flex flex-col flex-grow overflow-auto">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="trials">Results</TabsTrigger>
             <TabsTrigger value="profile">Your Information</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="trials" className="space-y-6">
+          <TabsContent
+            value="trials"
+            className="space-y-6 flex flex-col flex-grow overflow-auto"
+          >
             {/* Search and Filter Bar */}
             <div className="flex gap-4 items-center">
               <div className="flex-1 relative">
@@ -463,7 +468,7 @@ const ResultsScreen: React.FC<ResultsScreenProps> = ({
 
             {/* Trials List */}
             {/* <ScrollArea className="h-[600px]"> */}
-            <ScrollArea className="h-[600px]">
+            <ScrollArea className="border-2 border-spacing-1 rounded-lg h-[600px]">
               <div className="space-y-4">
                 {filteredTrials.length === 0 ? (
                   <div className="text-center py-8">
