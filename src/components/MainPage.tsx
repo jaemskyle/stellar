@@ -264,12 +264,12 @@ export default function MainPage() {
     console.log('jb connectConversation', '==client.connect()');
     await client.connect();
     console.log('jb connectConversation', '==client.connect() done');
-    // client.sendUserMessageContent([
-    //   {
-    //     type: `input_text`,
-    //     text: `Hello! I'm looking for clinical trials that might be suitable for me.`,
-    //   },
-    // ]);
+    client.sendUserMessageContent([
+      {
+        type: `input_text`,
+        text: `Hello! I'm the engineer developing this application, and I'm just performing some tests. We don't need to talk about clinical trials or anything. Just perform a sample search, like for the latest clinical trials on ADHD. That's it.`,
+      },
+    ]);
     console.log('Forcing model response generation');
     client.createResponse();
     console.log('Model response creation complete');
@@ -343,13 +343,15 @@ export default function MainPage() {
    * In push-to-talk mode, stop recording
    */
   const stopRecording = async () => {
-    if (!clientRef.current) return;
+    console.debug('Stopping recording. Current setIsRecording: ', isRecording);
+    if (!clientRef.current || !isRecording) return;
 
     setIsRecording(false);
     const client = clientRef.current;
     const wavRecorder = wavRecorderRef.current;
     await wavRecorder.pause();
     client.createResponse();
+    console.debug('Recording stopped');
   };
 
   /**
