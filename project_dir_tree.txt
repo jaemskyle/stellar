@@ -13,11 +13,14 @@
 ├── public
 │   └── favicon.svg
 ├── src
+│   ├── App.tsx
 │   ├── components
 │   │   ├── Card.astro
 │   │   ├── ConsolePage.scss
 │   │   ├── ConsolePage.tsx
+│   │   ├── ConsolePageOG.tsx
 │   │   ├── Logo.tsx
+│   │   ├── MainPage.tsx
 │   │   ├── Message.tsx
 │   │   ├── ProductDisplay.tsx
 │   │   ├── ReportModal.tsx
@@ -34,6 +37,8 @@
 │   │   └── ui
 │   │       ├── alert.tsx
 │   │       ├── button.tsx
+│   │       ├── scroll-area.tsx
+│   │       ├── tabs.tsx
 │   │       └── toggle.tsx
 │   ├── env.d.ts
 │   ├── layouts
@@ -73,9 +78,10 @@
 │   │   └── globals.css
 │   └── utils
 │       ├── model_instructions.js
+│       ├── timeUtils.ts
 │       └── wav_renderer.ts
 ├── tailwind.config.mjs
 ├── tsconfig.json
 └── tsconfig_og.json
 
-18 directories, 61 files
+18 directories, 67 files
