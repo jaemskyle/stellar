@@ -31,7 +31,6 @@ import TrialsDisplay from './TrialsDisplay';
 // Constants
 const LOCAL_RELAY_SERVER_URL: string =
   import.meta.env.PUBLIC_RELAY_SERVER_URL || '';
-  
 
 // Types
 interface RealtimeEvent {
