@@ -90,7 +90,15 @@ const TrialCard: React.FC<TrialCardProps> = ({
         <div className="flex justify-between items-start gap-4">
           <div className="flex-grow">
             <h4 className="text-lg font-medium text-gray-900 mb-2">
-              {trial.studyTitle}
+              <a
+                href={`https://clinicaltrials.gov/study/${trial.nctNumber}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center hover:text-blue-800"
+              >
+                {trial.studyTitle}
+                {/* <ExternalLink className="inline-block w-4 h-4 ml-1 align-text-top text-blue-600" /> */}
+              </a>
             </h4>
             <div className="flex items-center gap-3 text-sm text-gray-500">
               <span>{trial.nctNumber}</span>
@@ -108,7 +116,7 @@ const TrialCard: React.FC<TrialCardProps> = ({
             </motion.button>
           </div>
           {/* Actions */}
-          <div className="flex justify-end pt-2">
+          {/* <div className="flex justify-end pt-2">
             <a
               href={`https://clinicaltrials.gov/study/${trial.nctNumber}`}
               target="_blank"
@@ -118,10 +126,11 @@ const TrialCard: React.FC<TrialCardProps> = ({
               View on ClinicalTrials.gov
               <ExternalLink className="w-4 h-4" />
             </a>
-          </div>
+          </div> */}
         </div>
       </div>
 
+      {/* Expanded content */}
       <AnimatePresence>
         {isExpanded && (
           <motion.div
@@ -468,7 +477,7 @@ const ResultsScreen: React.FC<ResultsScreenProps> = ({
 
             {/* Trials List */}
             {/* <ScrollArea className="h-[600px]"> */}
-            <ScrollArea className="border-2 border-spacing-1 rounded-lg h-[600px]">
+            <ScrollArea className="border-2 border-spacing-1 rounded-lg h-[1000px]">
               <div className="space-y-4">
                 {filteredTrials.length === 0 ? (
                   <div className="text-center py-8">

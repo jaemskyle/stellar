@@ -54,7 +54,11 @@ export default function MainPage() {
 
   // Core State from ConsolePageOG
   const [apiKey, setApiKey] = useState<string>('');
-  const clientRef = useRef<RealtimeClient | null>(null);
+  // Initialize client ref with null and update it when apiKey is available
+  // const clientRef = useRef<RealtimeClient | null>(null);
+  const clientRef = useRef<RealtimeClient>(
+    new RealtimeClient({ url: LOCAL_RELAY_SERVER_URL })
+  );
   const [isConnected, setIsConnected] = useState(false);
   const startTimeRef = useRef<string>(new Date().toISOString());
 
@@ -563,19 +567,19 @@ export default function MainPage() {
   /* ---------------------------------------------------------------- */
   /* ---------------------------------------------------------------- */
 
-  /**
-   * UI Effects
-   * Auto-scroll the event logs
-   */
-  useEffect(() => {
-    if (!eventsScrollRef.current) return;
-    const eventsEl = eventsScrollRef.current;
-    const scrollHeight = eventsEl.scrollHeight;
-    if (scrollHeight !== eventsScrollHeightRef.current) {
-      eventsEl.scrollTop = scrollHeight;
-      eventsScrollHeightRef.current = scrollHeight;
-    }
-  }, [realtimeEvents]);
+  // /**
+  //  * UI Effects
+  //  * Auto-scroll the event logs
+  //  */
+  // useEffect(() => {
+  //   if (!eventsScrollRef.current) return;
+  //   const eventsEl = eventsScrollRef.current;
+  //   const scrollHeight = eventsEl.scrollHeight;
+  //   if (scrollHeight !== eventsScrollHeightRef.current) {
+  //     eventsEl.scrollTop = scrollHeight;
+  //     eventsScrollHeightRef.current = scrollHeight;
+  //   }
+  // }, [realtimeEvents]);
 
   useEffect(() => {
     document.querySelectorAll('[data-conversation-content]').forEach(el => {
@@ -846,15 +850,70 @@ export default function MainPage() {
   /* ---------------------------------------------------------------- */
 
   // Enhanced conversation components with proper message handling
+  const ConversationView = ({
+    items,
+    showConversation,
+  }: {
+    items: ItemType[];
+    showConversation: boolean;
+  }) => {
+    const scrollRef = React.useRef<HTMLDivElement>(null);
+    const [autoScroll, setAutoScroll] = React.useState(true);
+
+    React.useEffect(() => {
+      if (autoScroll && scrollRef.current) {
+        const scrollElement = scrollRef.current;
+        scrollElement.scrollTop = scrollElement.scrollHeight;
+      }
+    }, [items, autoScroll]);
+
+    const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
+      const { scrollTop, scrollHeight, clientHeight } = event.currentTarget;
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 50;
+      setAutoScroll(isNearBottom);
+    };
+
+    if (!showConversation) return null;
+
+    return (
+      <ScrollArea
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="w-full h-[500px] border border-gray-200 dark:border-gray-800 rounded-xl bg-white/50 dark:bg-black/50 backdrop-blur-xl shadow-sm overflow-auto flex-wrap"
+        // viewportClassName="h-full" // ? What's the right property here?
+      >
+        <div className="p-6 space-y-4">
+          {!items.length ? (
+            <div className="flex items-center justify-center h-full flex-wrap">
+              <div className="text-center text-gray-500 dark:text-gray-400">
+                <div className="mb-2 text-lg font-medium">No messages yet</div>
+                <div className="text-sm">
+                  Your conversation will appear here
+                </div>
+              </div>
+            </div>
+          ) : (
+            items.map(item => <ConversationItem key={item.id} item={item} />)
+          )}
+        </div>
+      </ScrollArea>
+    );
+  };
+
   const ConversationItem = ({ item }: { item: ItemType }) => {
     const getContent = () => {
       if (item.type === 'function_call_output') {
-        return <div className="text-gray-600">{item.formatted.output}</div>;
+        return (
+          // <div className="text-sm text-gray-600 dark:text-gray-300 break-words whitespace-pre-wrap flex-wrap text-wrap">
+          //   {item.formatted.output}
+          // </div>
+          null
+        );
       }
 
       if (item.formatted.tool) {
         return (
-          <div className="text-gray-600">
+          <div className="text-sm text-gray-600 dark:text-gray-300 break-words whitespace-pre-wrap flex-wrap">
             {item.formatted.tool.name}({item.formatted.tool.arguments})
           </div>
         );
@@ -862,7 +921,7 @@ export default function MainPage() {
 
       if (item.role === 'user') {
         return (
-          <div>
+          <div className="text-sm break-words whitespace-pre-wrap flex-wrap">
             {item.formatted.transcript ||
               (item.formatted.audio?.length
                 ? '(awaiting transcript)'
@@ -873,7 +932,7 @@ export default function MainPage() {
 
       if (item.role === 'assistant') {
         return (
-          <div>
+          <div className="text-sm break-words whitespace-pre-wrap flex-wrap">
             {item.formatted.transcript || item.formatted.text || '(truncated)'}
           </div>
         );
@@ -882,56 +941,65 @@ export default function MainPage() {
       return null;
     };
 
+    const getRoleStyles = () => {
+      switch (item.role) {
+        case 'system':
+          return 'bg-gray-50 dark:bg-gray-900 border-gray-100 dark:border-gray-800';
+        case 'assistant':
+          return 'bg-blue-50 dark:bg-blue-900/20 border-blue-100 dark:border-blue-800/30';
+        default:
+          return 'bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-800/30';
+      }
+    };
+
     return (
-      <div className="relative group">
+      <div className="group animate-fade-in">
         <div
-          className={`mb-4 p-4 rounded-lg ${
-            item.role === 'system'
-              ? 'bg-gray-50 text-gray-500'
-              : item.role === 'assistant'
-                ? 'bg-blue-50 text-blue-600'
-                : 'bg-green-50 text-green-600'
-          }`}
+          className={`relative border rounded-lg overflow-hidden transition-all ${getRoleStyles()}`}
         >
-          <div className="flex items-center justify-between mb-2">
-            <strong className="text-sm">
-              {(item.role || item.type).replaceAll('_', ' ')}
-            </strong>
+          <div className="px-4 py-3 flex items-center justify-between border-b border-inherit">
+            <div className="flex items-center space-x-2">
+              <span className="text-xs font-medium uppercase tracking-wider text-gray-600 dark:text-gray-300">
+                {(item.role || item.type).replaceAll('_', ' ')}
+              </span>
+            </div>
             <button
               onClick={() => deleteConversationItem(item.id)}
-              className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-600 transition-opacity"
+              className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
             >
-              Delete
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
             </button>
           </div>
-          <div className="text-gray-800">{getContent()}</div>
-          {item.formatted.file && <AudioPlayer file={item.formatted.file} />}
+          <div className="p-4">
+            <div className="text-gray-800 dark:text-gray-200 max-w-full overflow-hidden">
+              {getContent()}
+            </div>
+            {item.formatted.file && (
+              <div className="mt-2">
+                <AudioPlayer file={item.formatted.file} />
+              </div>
+            )}
+          </div>
         </div>
       </div>
     );
   };
 
-  const ConversationView = ({
-    items,
-    showConversation,
-  }: {
-    items: ItemType[];
-    showConversation: boolean;
-  }) => {
-    if (!showConversation) return null;
-
-    return (
-      <ScrollArea className="w-full max-w-md h-48 mb-8 border rounded-lg p-4">
-        {!items.length ? (
-          <div className="text-center text-gray-500">
-            Awaiting connection...
-          </div>
-        ) : (
-          items.map(item => <ConversationItem key={item.id} item={item} />)
-        )}
-      </ScrollArea>
-    );
-  };
+  /* ---------------------------------------------------------------- */
+  /* ---------------------------------------------------------------- */
+  /* ---------------------------------------------------------------- */
 
   const ErrorDisplay = ({ error }: { error: string | null }) => {
     if (!error) return null;
@@ -1258,17 +1326,19 @@ export default function MainPage() {
       id="main-page-root"
       className="flex flex-col flex-1 flex-grow overflow-auto bg-white relative"
     >
-      {/* Settings Button */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="absolute top-4 right-4 z-10"
-        onClick={() => setShowSettings(!showSettings)}
-      >
-        <Settings className="w-5 h-5" />
-      </Button>
+      {/* Settings Button - Only show when NOT on results screen */}
+      {currentScreen !== 'results' && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute top-4 right-4 z-10"
+          onClick={() => setShowSettings(!showSettings)}
+        >
+          <Settings className="w-5 h-5" />
+        </Button>
+      )}
 
-      {/* Settings Menu */}
+      {/* Settings Menu - Only show when NOT on results screen */}
       {showSettings && currentScreen !== 'results' && (
         <SettingsMenu
           resetAPIKey={resetAPIKey}
