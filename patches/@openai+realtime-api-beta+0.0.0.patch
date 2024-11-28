@@ -1,0 +1,34 @@
+diff --git a/node_modules/@openai/realtime-api-beta/lib/client.js b/node_modules/@openai/realtime-api-beta/lib/client.js
+index 949a2bc..8895bfd 100644
+--- a/node_modules/@openai/realtime-api-beta/lib/client.js
++++ b/node_modules/@openai/realtime-api-beta/lib/client.js
+@@ -91,7 +91,7 @@ import { RealtimeUtils } from './utils.js';
+  * @property {string|null} [previous_item_id]
+  * @property {"message"} type
+  * @property {ItemStatusType} status
+- * @property {"system"} role
++ * @property {"user"} role  // ! JB: changed from "system" to "user"
+  * @property {Array<InputTextContentType|InputAudioContentType>} content
+  */
+
+@@ -292,6 +292,8 @@ export class RealtimeClient extends RealtimeEventHandler {
+       try {
+         const jsonArguments = JSON.parse(tool.arguments);
+         const toolConfig = this.tools[tool.name];
++        // print(toolConfig);
++        console.log("====jb====:", toolConfig);
+         if (!toolConfig) {
+           throw new Error(`Tool "${tool.name}" has not been added`);
+         }
+@@ -356,8 +358,9 @@ export class RealtimeClient extends RealtimeEventHandler {
+       if (item.status === 'completed') {
+         this.dispatch('conversation.item.completed', { item });
+       }
+-      if (item.formatted.tool) {
+-        callTool(item.formatted.tool);
++      const tool = item.formatted.tool;
++      if (tool && this.tools[tool.name]?.handler) {
++        callTool(tool);
+       }
+     });
+

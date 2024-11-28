@@ -1,0 +1,83 @@
+.
+├── OPEN_SOURCE_ROADMAP.md
+├── README.md
+├── astro.config.mjs
+├── components.json
+├── eslint.config.mjs
+├── package-lock.json
+├── package.json
+├── patches
+│   └── @openai+realtime-api-beta+0.0.0.patch
+├── project_dir_tree.txt
+├── public
+│   └── favicon.svg
+├── src
+│   ├── App.tsx  # Reference template / scaffolding for the new UI/UX layer
+│   ├── components
+│   │   ├── Card.astro
+│   │   ├── ConsolePage.scss
+│   │   ├── ConsolePageOG.tsx  # This was the original console / component not being used currently
+│   │   ├── Logo.tsx
+│   │   ├── MainPage.tsx  # New main page/component with new UI/UX layer
+│   │   ├── Message.tsx
+│   │   ├── ProductDisplay.tsx
+│   │   ├── ReportModal.tsx
+│   │   ├── SuccessDisplay.tsx
+│   │   ├── TestButton.tsx
+│   │   ├── TrialsDisplay.tsx
+│   │   ├── VoiceChat.tsx
+│   │   ├── button
+│   │   │   ├── Button.scss
+│   │   │   └── Button.tsx
+│   │   ├── toggle
+│   │   │   ├── Toggle.scss
+│   │   │   └── Toggle.tsx
+│   │   └── ui
+│   │       ├── alert.tsx
+│   │       ├── button.tsx
+│   │       ├── scroll-area.tsx
+│   │       ├── tabs.tsx
+│   │       └── toggle.tsx
+│   ├── env.d.ts
+│   ├── layouts
+│   │   ├── Layout.astro
+│   │   └── SiteLayout.astro
+│   ├── lib
+│   │   ├── ctg-tool-def.ts
+│   │   ├── ctg-tool.ts
+│   │   ├── report-handler.ts
+│   │   ├── utils.ts
+│   │   └── wavtools
+│   │       ├── index.js
+│   │       └── lib
+│   │           ├── analysis
+│   │           │   ├── audio_analysis.js
+│   │           │   └── constants.js
+│   │           ├── wav_packer.js
+│   │           ├── wav_recorder.js
+│   │           ├── wav_stream_player.js
+│   │           └── worklets
+│   │               ├── audio_processor.js
+│   │               └── stream_processor.js
+│   ├── middleware.ts
+│   ├── pages
+│   │   ├── api
+│   │   │   ├── chat.ts
+│   │   │   ├── clinical-trials.ts
+│   │   │   ├── config.ts
+│   │   │   ├── create-checkout-session.ts
+│   │   │   ├── create-portal-session.ts
+│   │   │   ├── text-to-speech.ts
+│   │   │   ├── transcribe.ts
+│   │   │   └── webhook.ts
+│   │   ├── index.astro
+│   │   └── subscribe.astro
+│   ├── styles
+│   │   └── globals.css
+│   └── utils
+│       ├── model_instructions.js
+│       └── wav_renderer.ts
+├── tailwind.config.mjs
+├── tsconfig.json
+
+18 directories, 63 files

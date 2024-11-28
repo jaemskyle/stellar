@@ -72,6 +72,8 @@
       flex-direction: column;
       margin-left: 24px;
       gap: 24px;
+      position: relative;
+      z-index: 1;
       & > div {
         border-radius: 16px;
         flex-grow: 1;
@@ -90,7 +92,7 @@
           background-color: #fff;
           border-radius: 1000px;
           min-height: 32px;
-          z-index: 9999;
+          z-index: 2;
           text-align: center;
           white-space: pre;
           &.bottom {
@@ -276,5 +278,12 @@
         color: currentColor;
       }
     }
+  }
+
+  .modal-wrapper {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    isolation: isolate;
   }
 }

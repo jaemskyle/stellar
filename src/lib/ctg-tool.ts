@@ -3,9 +3,25 @@
 import { CTG_TOOL_DEFINITION } from './ctg-tool-def';
 
 /**
+ * Represents the summarized information of a clinical study.
+ */
+export interface StudyInfo {
+  studyTitle: string; // Official title of the study.
+  nctNumber: string; // NCT number (ClinicalTrials.gov identifier).
+  status: string; // Overall recruitment status of the study.
+  startDate: string; // Start date of the study.
+  completionDate: string; // Estimated or actual completion date of the study.
+  conditions: string; // Conditions or diseases being studied.
+  interventions: string; // Interventions or treatments being tested.
+  studyType: string; // Type of the study (e.g., Interventional, Observational).
+  briefSummary: string; // Brief summary of the study.
+  sponsor: string; // Lead sponsor of the study.
+  eligibilityModule: EligibilityModule; // Detailed eligibility criteria and demographics.
+}
+/**
  * Represents the eligibility criteria of a clinical study.
  */
-interface EligibilityModule {
+export interface EligibilityModule {
   /** Detailed description of the eligibility criteria. */
   eligibilityCriteria: string;
   /** Indicates if healthy volunteers are accepted. */
@@ -61,34 +77,6 @@ interface ProtocolSection {
     minimumAge?: string;
     stdAges?: string[];
   };
-}
-
-/**
- * Represents the summarized information of a clinical study.
- */
-interface StudyInfo {
-  /** Official title of the study. */
-  studyTitle: string;
-  /** NCT number (ClinicalTrials.gov identifier). */
-  nctNumber: string;
-  /** Overall recruitment status of the study. */
-  status: string;
-  /** Start date of the study. */
-  startDate: string;
-  /** Estimated or actual completion date of the study. */
-  completionDate: string;
-  /** Conditions or diseases being studied. */
-  conditions: string;
-  /** Interventions or treatments being tested. */
-  interventions: string;
-  /** Type of the study (e.g., Interventional, Observational). */
-  studyType: string;
-  /** Brief summary of the study. */
-  briefSummary: string;
-  /** Lead sponsor of the study. */
-  sponsor: string;
-  /** Detailed eligibility criteria and demographics. */
-  eligibilityModule: EligibilityModule;
 }
 
 /**
