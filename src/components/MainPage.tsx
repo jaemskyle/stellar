@@ -1,10 +1,15 @@
+/* eslint-disable no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // src/components/MainPage.tsx
+import { logger } from '@/utils/logger';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+// import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RealtimeClient } from '@openai/realtime-api-beta';
-import type { ItemType } from '@openai/realtime-api-beta/dist/lib/client.js';
+import type {
+  InputTextContentType,
+  ItemType,
+} from '@openai/realtime-api-beta/dist/lib/client.js';
 import { Eye, EyeOff, Mic, MicOff, PhoneOff, Settings } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -26,7 +31,7 @@ import {
 // Import components
 import ResultsScreen from './ResultsScreen';
 // import ReportModal from '@/components/ReportModal';
-import TrialsDisplay from './TrialsDisplay';
+// import TrialsDisplay from './TrialsDisplay';
 
 // Constants
 const LOCAL_RELAY_SERVER_URL: string =
@@ -39,12 +44,14 @@ interface RealtimeEvent {
   count?: number;
   event: { [key: string]: any };
 }
-
+interface LandingScreenProps {
+  onStart: () => Promise<void>;
+}
 export default function MainPage() {
-  console.log('MainPage component mounted'); // Add this
+  logger.log('====== MAINPAGE COMPONENT FUNCTION START ======');
   // Add a visible indicator
   useEffect(() => {
-    console.log('MainPage useEffect running');
+    logger.log('MAINPAGE TEST useEffect()');
   }, []);
 
   /* ---------------------------------------------------------------- */
@@ -53,11 +60,13 @@ export default function MainPage() {
 
   // Core State from ConsolePageOG
   const [apiKey, setApiKey] = useState<string>('');
-  // Initialize client ref with null and update it when apiKey is available
-  // const clientRef = useRef<RealtimeClient | null>(null);
-  const clientRef = useRef<RealtimeClient>(
-    new RealtimeClient({ url: LOCAL_RELAY_SERVER_URL })
-  );
+  // Initialize client with relay server if available, otherwise null
+  const clientRef = useRef<RealtimeClient | null>(null);
+  // const clientRef = useRef<RealtimeClient | null>(
+  //   LOCAL_RELAY_SERVER_URL
+  //     ? new RealtimeClient({ url: LOCAL_RELAY_SERVER_URL })
+  //     : null
+  // );
   const [isConnected, setIsConnected] = useState(false);
   const startTimeRef = useRef<string>(new Date().toISOString());
 
@@ -69,7 +78,14 @@ export default function MainPage() {
   // UI State
   const [showConversation, setShowConversation] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [activeTab, setActiveTab] = useState('results');
+  // const [activeTab, setActiveTab] = useState('results');
+  /* ---------------------------------------------------------------- */
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  /* ---------------------------------------------------------------- */
+
+  // Add error handling state
+  const [error, setError] = useState<Error | null>(null);
 
   /**
    * Instantiate:
@@ -87,16 +103,16 @@ export default function MainPage() {
   const [isRecording, setIsRecording] = useState(false);
 
   // Trials and Report State
-  const [trials, setTrials] = useState<StudyInfo[]>([]);
+  const [, setTrials] = useState<StudyInfo[]>([]);
   const [isLoadingTrials, setIsLoadingTrials] = useState(false);
   const [finalReport, setFinalReport] = useState<TrialsReport | null>(null);
   // const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   // UI Refs
-  const visualizerRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number>();
-  const eventsScrollRef = useRef<HTMLDivElement>(null);
-  const eventsScrollHeightRef = useRef(0);
+  // const visualizerRef = useRef<HTMLCanvasElement>(null);
+  // const eventsScrollRef = useRef<HTMLDivElement>(null);
+  // const eventsScrollHeightRef = useRef(0);
 
   /**
    * When you click the API key
@@ -120,9 +136,10 @@ export default function MainPage() {
    * Handles setup and configuration of available tools
    */
   const addTools = useCallback(() => {
-    if (!clientRef.current) return;
+    // if (!clientRef.current) return;
 
     const client = clientRef.current;
+    if (!client) return;
 
     client.addTool(
       {
@@ -178,7 +195,7 @@ export default function MainPage() {
               : 'No matching trials found with the current criteria.',
         };
       } catch (error) {
-        console.error('Error fetching trials:', error);
+        logger.error('Error fetching trials:', error);
         setIsLoadingTrials(false);
         return {
           status: 'error',
@@ -209,7 +226,7 @@ export default function MainPage() {
           reportTimestamp: report.timestamp,
         };
       } catch (error) {
-        console.error('Error generating report:', error);
+        logger.error('Error generating report:', error);
         return {
           status: 'error',
           error: 'Failed to generate report',
@@ -221,7 +238,7 @@ export default function MainPage() {
     // Update session after adding tools
     client.updateSession();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientRef]);
+  }, []);
 
   /**
    * Connection Management
@@ -230,22 +247,26 @@ export default function MainPage() {
    * WavRecorder takes speech input, WavStreamPlayer output, client is API client
    */
   const connectConversation = useCallback(async () => {
-    console.log('jkd connectConversation', '==clientRef', clientRef);
-    console.log(
-      'jb === !clientRef.current gets resolved to',
-      !clientRef.current
+    logger.log('====== CONNECTING CONVERSATION ======');
+    logger.log('jkd connectConversation', '==clientRef', clientRef);
+    logger.log(
+      'jb DEBUG: connectConversation',
+      '==clientRef.current',
+      clientRef.current
     );
-    if (!clientRef.current) return;
+    // if (!clientRef.current) return;
+
+    const client = clientRef.current;
+    if (!client) return;
 
     // if clientRef.current.tools object is empty trigger addTools
-    const toolsList = Object.keys(clientRef.current.tools);
-    const client = clientRef.current;
-
+    const toolsList = Object.keys(client.tools);
+    // Fall back to adding tools if none are present (i.e. the useEffect
+    // hook that calls addTools() didn't work for some reason)
     if (toolsList.length === 0) {
       addTools();
-
       // Update session after adding tools
-      client.updateSession();
+      client.updateSession(); // ? Do we need this??
     }
 
     const wavRecorder = wavRecorderRef.current;
@@ -258,30 +279,45 @@ export default function MainPage() {
     setItems(client.conversation.getItems());
 
     // Connect to microphone
+    logger.debug(
+      'DEBUG: Initializing audio recorder (wavRecorder) asynchronously'
+    );
     await wavRecorder.begin();
-
     // Connect to audio output
+    logger.debug(
+      'DEBUG: Initializing audio stream player (wavStreamPlayer) asynchronously'
+    );
     await wavStreamPlayer.connect();
 
     // Connect to realtime API
-    console.log('jb connectConversation', '==client.connect()');
+    logger.debug('DEBUG: await client.connect() - pre-try');
     await client.connect();
-    console.log('jb connectConversation', '==client.connect() done');
-    client.sendUserMessageContent([
+    logger.debug('DEBUG: await client.connect() - post-try');
+
+    const userMessageContent: InputTextContentType[] = [
       {
-        type: `input_text`,
+        type: 'input_text',
         text: `Hello! I'm the engineer developing this application, and I'm just performing some tests. We don't need to talk about clinical trials or anything. Just perform a sample search, like for the latest clinical trials on ADHD. That's it.`,
       },
-    ]);
-    console.log('Forcing model response generation');
-    client.createResponse();
-    console.log('Model response creation complete');
+    ];
+    logger.debug('!!!!! jb ==userMessageContent', userMessageContent);
+    client.sendUserMessageContent(userMessageContent);
+    // client.sendUserMessageContent([
+    //   {
+    //     type: `input_text`,
+    //     text: `Hello! I'm the engineer developing this application, and I'm just performing some tests. We don't need to talk about clinical trials or anything. Just perform a sample search, like for the latest clinical trials on ADHD. That's it.`,
+    //   },
+    // ]);
+    logger.debug('DEBUG: Sent text message:', userMessageContent);
+    // logger.log('Forcing model response generation');
+    // client.createResponse();
+    logger.log('Model response creation complete');
 
     if (client.getTurnDetectionType() === 'server_vad') {
       await wavRecorder.record(data => client.appendInputAudio(data.mono));
     }
 
-    console.log('Connected to conversation');
+    logger.log('====== CONVERSATION CONNECTION COMPLETE ======');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientRef]);
 
@@ -290,7 +326,7 @@ export default function MainPage() {
    * Cleans up all connections and resets state
    */
   const disconnectConversation = useCallback(async () => {
-    if (!clientRef.current) return;
+    // if (!clientRef.current) return;
 
     setIsConnected(false);
     setRealtimeEvents([]);
@@ -328,10 +364,11 @@ export default function MainPage() {
    * Handles all audio recording and playback functionality
    */
   const startRecording = async () => {
-    if (!clientRef.current) return;
+    // if (!clientRef.current) return;
 
     setIsRecording(true);
     const client = clientRef.current;
+    if (!client) return;
     const wavRecorder = wavRecorderRef.current;
     const wavStreamPlayer = wavStreamPlayerRef.current;
     const trackSampleOffset = wavStreamPlayer.interrupt();
@@ -346,7 +383,7 @@ export default function MainPage() {
    * In push-to-talk mode, stop recording
    */
   const stopRecording = async () => {
-    console.debug('Stopping recording. Current setIsRecording: ', isRecording);
+    logger.debug('Stopping recording. Current setIsRecording: ', isRecording);
     if (!clientRef.current || !isRecording) return;
 
     setIsRecording(false);
@@ -354,7 +391,7 @@ export default function MainPage() {
     const wavRecorder = wavRecorderRef.current;
     await wavRecorder.pause();
     client.createResponse();
-    console.debug('Recording stopped');
+    logger.debug('Recording stopped');
   };
 
   /**
@@ -362,9 +399,10 @@ export default function MainPage() {
    * Handles turn detection type changes
    */
   const changeTurnEndType = async (value: string) => {
-    if (!clientRef.current) return;
+    // if (!clientRef.current) return;
 
     const client = clientRef.current;
+    if (!client) return;
     const wavRecorder = wavRecorderRef.current;
     if (value === 'none' && wavRecorder.getStatus() === 'recording') {
       await wavRecorder.pause();
@@ -384,12 +422,12 @@ export default function MainPage() {
    */
   const handleManualReportGeneration = useCallback(async () => {
     if (!reportHandler.getLatestTrials().length) {
-      console.warn('No trials available for report generation');
+      logger.warn('No trials available for report generation');
       return;
     }
 
     try {
-      console.debug('Generating report manually');
+      logger.debug('Generating report manually');
 
       // Generate report first
       const report = reportHandler.generateReport(
@@ -398,7 +436,7 @@ export default function MainPage() {
         true // mark as complete since user is ending conversation
       );
       setFinalReport(report);
-      console.log('Report set:', report);
+      logger.log('Report set:', report);
 
       // First disconnect conversation
       await disconnectConversation();
@@ -406,14 +444,14 @@ export default function MainPage() {
       // setIsReportModalOpen(true); // Open modal after report
       // generation
       setCurrentScreen('results');
-      console.log('Results screen opened');
-      console.debug('Manual report generation complete:', {
+      logger.log('Results screen opened');
+      logger.debug('Manual report generation complete:', {
         timestamp: report.timestamp,
         trialsCount: report.trials.length,
       });
-      console.log('Report generated and conversation ended by user');
+      logger.log('Report generated and conversation ended by user');
     } catch (error) {
-      console.error('Error during report generation:', error);
+      logger.error('Error during report generation:', error);
       // Optionally show error to user
     }
   }, [memoryKv, disconnectConversation]);
@@ -423,86 +461,136 @@ export default function MainPage() {
    *
    * @param id - The ID of the item to delete.
    */
-  const deleteConversationItem = useCallback(
-    async (id: string) => {
-      if (!clientRef.current) return;
+  const deleteConversationItem = useCallback(async (id: string) => {
+    // if (!clientRef.current) return;
+    const client = clientRef.current;
+    if (!client) return;
+    client.deleteItem(id);
+  }, []);
 
-      const client = clientRef.current;
-      client.deleteItem(id);
-    },
-    [clientRef]
-  );
-
-  // Continue with Part 2b for Effects and UI Components...
-  // ... continuing from Part 2a
-
-  /**
-   * Effect Hooks
-   * Organized by initialization order and dependencies
-   */
-
+  /* ---------------------------------------------------------------- */
+  /* ---------------------------------------------------------------- */
+  /* ---------------------------------------------------------------- */
+  /* **************************************************************** */
+  /*                           EFFECT HOOKS                           */
+  /* **************************************************************** */
+  /*        Organized by initialization order and dependencies        */
+  /* **************************************************************** */
+  /* ---------------------------------------------------------------- */
+  /* ---------------------------------------------------------------- */
+  /* ---------------------------------------------------------------- */
   /**
    * API and Client Initialization
-   * Ask user for API Key.
-   * If we're using the local relay server, we don't need this.
+   * Fetch API Key from configuration on component mount (signified by
+   * empty dependency array), but only if not using local relay server.
    */
   // Fetch API key on component mount
   useEffect(() => {
-    async function fetchConfig() {
+    // Skip API key fetch if using relay server
+    if (LOCAL_RELAY_SERVER_URL) {
+      // logger.log(
+      //   '~~~~~~ Client Already Initialized (with Relay Server) ~~~~~~'
+      // );
+      logger.log(
+        '~~~~~~ RELAY SERVER DETECTED ~~~~~~',
+        '\nSetting up RealtimeClient with relay server'
+      );
+      clientRef.current = new RealtimeClient({ url: LOCAL_RELAY_SERVER_URL });
+      setIsInitialized(true);
+      setIsLoading(false);
+      // logger.log('~~~~~~ RELAY SERVER DETECTED ~~~~~~');
+      // logger.log('****** Skipping API key fetch ******');
+      logger.log(
+        '~~~~~~ CLIENT INITIALIZED WITH RELAY SERVER ~~~~~~',
+        isInitialized,
+        isLoading
+      );
+      return;
+    }
+
+    async function initWithApiKey() {
       try {
-        console.log('Fetching configuration from /api/config');
+        logger.log(
+          '!######! WARNING !######!',
+          '====== RELAY SERVER NOT DETECTED, FETCHING API KEY ======'
+        );
+        setIsLoading(true);
+        logger.debug('Fetching configuration from /api/config');
         const response = await fetch('/api/config');
+        logger.debug('FETCHED CONFIGURATION:', response);
+        logger.debug('Parsing configuration data');
         const data = await response.json();
         if (!data.apiKey) {
-          throw new Error('No API key found in configuration');
+          throw new Error('No API key found');
         }
-        console.log('Configuration data:', data);
+        logger.debug('PARSED CONFIGURATION DATA:', data);
+
+        clientRef.current = new RealtimeClient({
+          apiKey: data.apiKey,
+          dangerouslyAllowAPIKeyInBrowser: true,
+        });
+
         setApiKey(data.apiKey);
+        setIsInitialized(true);
+        logger.log(
+          '====== CLIENT INITIALIZED WITH API KEY ======',
+          isInitialized,
+          isLoading
+        );
       } catch (error) {
-        console.error('Error fetching config:', error);
+        setError(error as Error);
+        logger.error('Error fetching config:', error);
+      } finally {
+        setIsLoading(false);
       }
     }
-    fetchConfig();
+    initWithApiKey();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    if (apiKey) {
-      console.log('Initializing RealtimeClient with API key:', apiKey);
-      clientRef.current = new RealtimeClient({ url: LOCAL_RELAY_SERVER_URL });
-      // clientRef.current = new RealtimeClient(
-      //   LOCAL_RELAY_SERVER_URL
-      //     ? { url: LOCAL_RELAY_SERVER_URL }
-      //     : {
-      //         apiKey: apiKey,
-      //         dangerouslyAllowAPIKeyInBrowser: true,
-      //       }
-      // );
-    }
-  }, [apiKey]);
-
-  /**
-   * Tool and Core Setup
-   */
-  useEffect(() => {
-    addTools();
-  }, [addTools]); // ? jb
-  // }, [apiKey, addTools]); // ? jkd
+  // /**
+  //  * ? RealtimeClient Initialization (or re-initialization?) when API
+  //  * ? key changes
+  //  * ? Initialize RealtimeClient with API key on API key change
+  //  */
+  // useEffect(() => {
+  //   if (apiKey) {
+  //     logger.log('Initializing RealtimeClient with API key:', apiKey);
+  //     // clientRef.current = new RealtimeClient({ url: LOCAL_RELAY_SERVER_URL });
+  //     clientRef.current = new RealtimeClient(
+  //       LOCAL_RELAY_SERVER_URL
+  //         ? { url: LOCAL_RELAY_SERVER_URL }
+  //         : {
+  //             apiKey: apiKey,
+  //             dangerouslyAllowAPIKeyInBrowser: true,
+  //           }
+  //     );
+  //   }
+  // }, [apiKey]);
 
   /**
    * Core RealtimeClient and audio capture setup
    * Set all of our instructions, tools, events and more
    */
   useEffect(() => {
-    console.log('Starting RealtimeClient setup and connection to conversation');
-    if (!clientRef.current) return;
+    if (!isInitialized) return; // Don't run until initialized
+    logger.log('====== CORE SETUP STARTING ======');
+    logger.log(
+      'Starting core setup of RealtimeClient, audio capture, eventHandlers, etc. (WITHOUT connecting to conversation)'
+    );
 
     // Get refs
     const client = clientRef.current;
     const wavStreamPlayer = wavStreamPlayerRef.current;
+    // if (!client) return;
+    if (!client) {
+      console.error('Client not initialized despite isInitialized flag');
+      return;
+    }
 
     // Initialize session settings
     // Set instructions
-    console.log('Setting instructions and transcription model:', instructions, {
+    logger.log('Setting instructions and transcription model:', {
       model: 'whisper-1',
     });
 
@@ -512,41 +600,153 @@ export default function MainPage() {
 
     // Event handlers setup
     // handle realtime events from client + server for event logging
-    console.log('Setting up event listeners');
+    logger.log('Setting up event listeners');
     const eventHandlers = {
       'realtime.event': (realtimeEvent: RealtimeEvent) => {
-        setRealtimeEvents(events => {
-          const lastEvent = events[events.length - 1];
+        if (realtimeEvent.event.type === 'error') {
+          logger.error(
+            `
+            ! ===============================
+            ! ERROR IN REALTIME EVENT
+            ! ===============================
+            ! Event: ${JSON.stringify(realtimeEvent.event)}
+            ! Details:
+            `,
+            realtimeEvent
+          );
+        } else if (realtimeEvent.source === 'server') {
+          logger.log(
+            `
+            ╔════════════════════════════════════════════════════════════════════════════════
+            ║ REALTIME EVENT - RECEIVED FROM ${realtimeEvent.source}
+            ║ Type: ${realtimeEvent.event.type}
+            ║ Time: ${realtimeEvent.time}
+            ║ Event:
+            ╚════════════════════════════════════════════════════════════════════════════════
+            `,
+            realtimeEvent
+          );
+          // ║ Event: ${JSON.stringify(realtimeEvent.event)}
+        } else if (realtimeEvent.source === 'client') {
+          logger.log(
+            `
+            +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+            + REALTIME EVENT - SENT BY ${realtimeEvent.source}
+            + Type: ${realtimeEvent.event.type}
+            + Time: ${realtimeEvent.time}
+            + Event:
+            +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+            `,
+            realtimeEvent
+          );
+        } else {
+          logger.log(
+            `
+            ! ===============================
+            ! UNKNOWN REALTIME EVENT SOURCE
+            ! ===============================
+            ! Event: ${realtimeEvent.event}
+            ! Details:
+            `,
+            realtimeEvent
+          );
+        }
+
+        setRealtimeEvents(realtimeEvents => {
+          const lastEvent = realtimeEvents[realtimeEvents.length - 1];
+
           if (lastEvent?.event.type === realtimeEvent.event.type) {
+            logger.debug(
+              `[REALTIME] Incrementing count for repeated event: ${realtimeEvent.event.type}`
+            );
             lastEvent.count = (lastEvent.count || 0) + 1;
-            return events.slice(0, -1).concat(lastEvent);
+            return realtimeEvents.slice(0, -1).concat(lastEvent);
           } else {
-            return events.concat(realtimeEvent);
+            logger.debug(
+              `[REALTIME] Adding new event type: ${realtimeEvent.event.type}`
+            );
+            return realtimeEvents.concat(realtimeEvent);
           }
         });
       },
-      error: (event: any) => console.error(event),
+
+      'error': (event: any) => {
+        logger.error(
+          `
+          ! ===============================
+          ! ERROR IN EVENT HANDLER
+          ! ===============================
+          ! Details:
+          `,
+          event
+        );
+      },
+
       'conversation.interrupted': async () => {
+        logger.warn(
+          `
+          ▼ ==============================
+          ▼ CONVERSATION INTERRUPTED
+          ▼ ==============================
+          `
+        );
+
         const trackSampleOffset = wavStreamPlayer.interrupt();
+
         if (trackSampleOffset?.trackId) {
+          logger.info(
+            `[INTERRUPT] Canceling response for track: ${trackSampleOffset.trackId}`
+          );
           client.cancelResponse(
             trackSampleOffset.trackId,
             trackSampleOffset.offset
           );
+        } else {
+          logger.debug('[INTERRUPT] No active track to cancel');
         }
       },
+
       'conversation.updated': async ({ item, delta }: any) => {
+        logger.log(
+          `
+          ┌──────────────────────────────
+          │ CONVERSATION UPDATE
+          │ Item ID: ${item.id}
+          │ Status: ${item.status}
+          │ ¶¶¶¶¶ HAS AUDIO DELTA: ${!!delta?.audio} ¶¶¶¶¶
+          └──────────────────────────────
+          `
+        );
+
         if (delta?.audio) {
+          logger.debug(
+            '[AUDIO] AUDIO OUT DETECTED --- Processing new audio delta'
+          );
+          logger.debug(
+            `
+            ¶¶¶¶¶¶¶¶¶¶¶¶¶¶¶¶¶¶¶¶¶¶¶¶¶¶¶¶¶
+            ¶ STARTING TO PLAY AUDIO for
+            ¶ Item ID: ${item.id}
+            ¶¶¶¶¶¶¶¶¶¶¶¶¶¶¶¶¶¶¶¶¶¶¶¶¶¶¶¶¶
+            `
+          );
           wavStreamPlayer.add16BitPCM(delta.audio, item.id);
         }
         if (item.status === 'completed' && item.formatted.audio?.length) {
+          logger.info(
+            '[AUDIO] AUDIO PLAYBACK COMPLETED for item ${item.id}',
+            '\n[AUDIO] Converting completed audio message'
+          );
+
           const wavFile = await WavRecorder.decode(
             item.formatted.audio,
             24000,
             24000
           );
           item.formatted.file = wavFile;
+          logger.debug('[AUDIO] Audio conversion complete');
         }
+
         setItems(client.conversation.getItems());
       },
     };
@@ -558,10 +758,19 @@ export default function MainPage() {
 
     setItems(client.conversation.getItems());
 
+    logger.log('====== CORE SETUP COMPLETE ======');
     return () => {
       client.reset(); // cleanup; resets to defaults
     };
-  }, [apiKey, clientRef]);
+  }, [isInitialized]); // Run when initialization completes
+
+  /**
+   * Tool and Core Setup
+   */
+  useEffect(() => {
+    addTools();
+  }, [addTools]); // ? jb
+  // }, [apiKey, addTools]); // ? jkd
 
   /* ---------------------------------------------------------------- */
   /* ---------------------------------------------------------------- */
@@ -747,23 +956,27 @@ export default function MainPage() {
   /* ---------------------------------------------------------------- */
 
   useEffect(() => {
-    console.log('Current screen:', currentScreen); // Add logging
+    logger.log('====== CURRENT SCREEN:', currentScreen, '======');
+    // logger.log('Current screen:', currentScreen); // Add logging
   }, [currentScreen]);
 
   /* ---------------------------------------------------------------- */
 
   const handleStart = async () => {
-    console.log('Start button clicked - pre-try');
+    logger.log('=== Handling START - pre-try ===');
     try {
-      console.log('clientRef current state:', clientRef.current); // Add this
-      console.log('apiKey state:', apiKey); // Add this
+      logger.debug('DEBUG: clientRef current state:', clientRef.current); // Add this
+      logger.debug('DEBUG: apiKey state:', apiKey); // Add this
+      logger.log('--- Connecting conversation ---');
       await connectConversation();
-      console.log('Connection successful');
+      logger.log('--- Connection successful ---');
+      logger.debug('DEBUG: Setting current screen to voiceChat');
       setCurrentScreen('voiceChat');
+      logger.log('=== Handling START done - post-try ===');
     } catch (error) {
-      console.error('Connection failed:', error);
+      logger.error('====== CONNECTION FAILED: ======\n', error);
       // Add more error details
-      console.error('Error details:', {
+      logger.error('Error details:', {
         clientRef: clientRef.current,
         apiKey,
         isConnected,
@@ -774,10 +987,6 @@ export default function MainPage() {
   /* ---------------------------------------------------------------- */
   /* ---------------------------------------------------------------- */
   /* ---------------------------------------------------------------- */
-
-  interface LandingScreenProps {
-    onStart: () => Promise<void>;
-  }
 
   // UI Components
   const LandingScreen: React.FC<LandingScreenProps> = ({ onStart }) => (
@@ -800,7 +1009,7 @@ export default function MainPage() {
           // size="icon"
           className="w-20 h-20 rounded-full bg-black hover:bg-gray-800 transition-colors flex items-center justify-center"
           onClick={() => {
-            console.log('Button clicked - immediate feedback');
+            // logger.log('Button clicked - immediate feedback');
             onStart();
           }}
           // onClick={async () => {
@@ -830,7 +1039,7 @@ export default function MainPage() {
   //         // size="icon"
   //         className="w-20 h-20 rounded-full bg-black hover:bg-gray-800 transition-colors flex items-center justify-center"
   //         onClick={() => {
-  //           console.log('Button clicked - immediate feedback');
+  //           logger.log('Button clicked - immediate feedback');
   //           handleStart();
   //         }}
   //         // onClick={async () => {
@@ -1000,12 +1209,12 @@ export default function MainPage() {
   /* ---------------------------------------------------------------- */
   /* ---------------------------------------------------------------- */
 
-  const ErrorDisplay = ({ error }: { error: string | null }) => {
+  const ErrorDisplay = ({ error }: { error: Error | null }) => {
     if (!error) return null;
 
     return (
       <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded-lg">
-        {error}
+        {error?.message}
       </div>
     );
   };
@@ -1098,7 +1307,7 @@ export default function MainPage() {
     canPushToTalk,
     showConversation,
     hasError,
-    errorMessage,
+    error,
     items,
     startRecording,
     stopRecording,
@@ -1112,7 +1321,7 @@ export default function MainPage() {
     canPushToTalk: boolean;
     showConversation: boolean;
     hasError: boolean;
-    errorMessage: string | null;
+    error: Error | null;
     items: ItemType[];
     startRecording: () => Promise<void>;
     stopRecording: () => Promise<void>;
@@ -1128,7 +1337,7 @@ export default function MainPage() {
         hasError={hasError}
       />
 
-      <ErrorDisplay error={errorMessage} />
+      <ErrorDisplay error={error} />
 
       <h1 className="text-2xl font-bold mb-12">Clinical Trial Finder</h1>
 
@@ -1170,7 +1379,7 @@ export default function MainPage() {
             }`}
             onMouseDown={startRecording}
             onMouseUp={stopRecording}
-            onMouseLeave={stopRecording} // Safety: stop if mouse leaves button
+            // onMouseLeave={stopRecording} // Safety: stop if mouse leaves button
             disabled={!isConnected || !canPushToTalk}
           >
             {isRecording ? (
@@ -1301,9 +1510,6 @@ export default function MainPage() {
   //   </div>
   // );
 
-  // Add error handling state
-  const [error, setError] = useState<string | null>(null);
-
   /* ---------------------------------------------------------------- */
   /* ---------------------------------------------------------------- */
   /* ---------------------------------------------------------------- */
@@ -1314,9 +1520,44 @@ export default function MainPage() {
   useEffect(() => {
     const mainPageElement = document.getElementById('main-page-root');
     if (mainPageElement) {
-      console.log('MainPage clientHeight:', mainPageElement.clientHeight);
+      logger.debug(
+        'DEBUG: MainPage root clientHeight:',
+        mainPageElement.clientHeight
+      );
     }
   }, []);
+  /* ---------------------------------------------------------------- */
+
+  /* ---------------------------------------------------------------- */
+  /* ---------------------------------------------------------------- */
+  /* ---------------------------------------------------------------- */
+  /* **************************************************************** */
+  /*                            MAIN RENDER                           */
+  /* **************************************************************** */
+  /* ---------------------------------------------------------------- */
+  /* ---------------------------------------------------------------- */
+  /* ---------------------------------------------------------------- */
+
+  /* ===================== Guard the main render ==================== */
+  const LoadingState = ({ error }: { error: Error | null }) => (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="text-center">
+        {isLoading ? (
+          <div>Loading...</div>
+        ) : (
+          <div className="text-red-600">
+            {error?.message || 'Failed to load'}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // Then in render guard:
+  if (!isInitialized || isLoading) {
+    return <LoadingState error={error} />;
+  }
+
   /* ---------------------------------------------------------------- */
 
   // Main render function with proper state handling
@@ -1354,10 +1595,10 @@ export default function MainPage() {
             try {
               // await connectConversation();
               // setCurrentScreen('voiceChat');
-              console.log('Button clicked - immediate feedback');
+              logger.debug('DEBUG: START Button clicked - immediate feedback');
               handleStart();
             } catch (err) {
-              setError((err as Error).message);
+              setError(err as Error);
             }
           }}
         />
@@ -1371,7 +1612,7 @@ export default function MainPage() {
           canPushToTalk={canPushToTalk}
           showConversation={showConversation}
           hasError={!!error}
-          errorMessage={error}
+          error={error}
           items={items}
           startRecording={startRecording}
           stopRecording={stopRecording}
@@ -1381,7 +1622,7 @@ export default function MainPage() {
               await handleManualReportGeneration();
               setCurrentScreen('results');
             } catch (err) {
-              setError((err as Error).message);
+              setError(err as Error);
             }
           }}
           wavRecorderRef={wavRecorderRef}
@@ -1396,11 +1637,11 @@ export default function MainPage() {
           isLoadingTrials={isLoadingTrials}
           onStartNewSearch={async () => {
             try {
-              console.debug('Starting new search from results screen');
+              logger.debug('Starting new search from results screen');
               await connectConversation();
               setCurrentScreen('voiceChat');
             } catch (error) {
-              console.error('Error starting new search:', error);
+              logger.error('Error starting new search:', error);
               // Could add error handling UI here
             }
           }}
