@@ -246,10 +246,10 @@ export async function getClinicalTrials(
       const description = protocol?.descriptionModule || {};
       const eligibility = protocol?.eligibilityModule || {};
 
-      // Log the NCT number of the current study
-      console.debug(
-        `Processing study NCT Number: ${identification.nctId || 'Unknown'}`
-      );
+      // // Log the NCT number of the current study
+      // console.debug(
+      //   `Processing study NCT Number: ${identification.nctId || 'Unknown'}`
+      // );
 
       // Return the mapped StudyInfo object
       return {
