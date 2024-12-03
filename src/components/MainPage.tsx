@@ -1579,15 +1579,15 @@ export default function MainPage() {
         </Button>
       )}
 
-      {/* Settings Menu - Only show when NOT on results screen */}
-      {showSettings && currentScreen !== 'results' && (
-        <SettingsMenu
-          resetAPIKey={resetAPIKey}
-          changeTurnEndType={changeTurnEndType}
-          canPushToTalk={canPushToTalk}
-          fullCleanup={fullCleanup}
-        />
-      )}
+      // {/* Settings Menu - Only show when NOT on results screen */}
+      // {showSettings && currentScreen !== 'results' && (
+      //   <SettingsMenu
+      //     resetAPIKey={resetAPIKey}
+      //     changeTurnEndType={changeTurnEndType}
+      //     canPushToTalk={canPushToTalk}
+      //     fullCleanup={fullCleanup}
+      //   />
+      // )}
 
       {/* Landing Screen */}
       {currentScreen === 'landing' && (
