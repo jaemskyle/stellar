@@ -594,7 +594,8 @@ export default function MainPage() {
       model: 'whisper-1',
     });
 
-    client.updateSession({ instructions: instructions });
+    // Other voice option is 'ash'; heavier and 'authoritative'?
+    client.updateSession({ instructions: instructions, voice: 'echo' });
     // Set transcription, otherwise we don't get user transcriptions back
     client.updateSession({ input_audio_transcription: { model: 'whisper-1' } });
 
