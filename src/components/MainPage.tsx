@@ -298,21 +298,23 @@ export default function MainPage() {
     await client.connect();
     logger.debug('DEBUG: await client.connect() - post-try');
 
-    const userMessageContent: InputTextContentType[] = [
-      {
-        type: 'input_text',
-        text: `Hello! I'm the engineer developing this application, and I'm just performing some tests. We don't need to talk about clinical trials or anything. Just perform a sample search, like for the latest clinical trials on ADHD. That's it.`,
-      },
-    ];
-    logger.debug('!!!!! jb ==userMessageContent', userMessageContent);
-    client.sendUserMessageContent(userMessageContent);
+    // const userMessageContent: InputTextContentType[] = [
+    //   {
+    //     type: 'input_text',
+    //     text: `Hello! I'm the engineer developing this application, and I'm just performing some tests. We don't need to talk about clinical trials or anything. Just perform a sample search, like for the latest clinical trials on ADHD. That's it.`,
+    //   },
+    // ];
+    // logger.debug('!!!!! jb ==userMessageContent', userMessageContent);
+      // client.sendUserMessageContent(userMessageContent);
+
     // client.sendUserMessageContent([
     //   {
     //     type: `input_text`,
     //     text: `Hello! I'm the engineer developing this application, and I'm just performing some tests. We don't need to talk about clinical trials or anything. Just perform a sample search, like for the latest clinical trials on ADHD. That's it.`,
     //   },
     // ]);
-    logger.debug('DEBUG: Sent text message:', userMessageContent);
+      // logger.debug('DEBUG: Sent text message:', userMessageContent);
+
     // logger.log('Forcing model response generation');
     // client.createResponse();
     logger.log('Model response creation complete');
@@ -433,8 +435,13 @@ export default function MainPage() {
    * Handles manual report generation and conversation end
    */
   const handleManualReportGeneration = useCallback(async () => {
+
     if (!reportHandler.getLatestTrials().length) {
       logger.warn('No trials available for report generation');
+      // First disconnect conversation
+      await disconnectConversation();
+
+      setCurrentScreen('landing');
       return;
     }
 
@@ -450,8 +457,7 @@ export default function MainPage() {
       setFinalReport(report);
       logger.log('Report set:', report);
 
-      // First disconnect conversation
-      await disconnectConversation();
+
 
       // setIsReportModalOpen(true); // Open modal after report
       // generation
@@ -467,6 +473,9 @@ export default function MainPage() {
       // Optionally show error to user
     }
   }, [memoryKv, disconnectConversation]);
+
+
+
 
   /**
    * Delete a conversation item by its ID.
@@ -1528,15 +1537,7 @@ export default function MainPage() {
         </Button>
       )}
 
-      {/* Settings Menu - Only show when NOT on results screen */}
-      {showSettings && currentScreen !== 'results' && (
-        <SettingsMenu
-          resetAPIKey={resetAPIKey}
-          changeTurnEndType={changeTurnEndType}
-          canPushToTalk={canPushToTalk}
-          fullCleanup={fullCleanup}
-        />
-      )}
+
 
       {/* Landing Screen */}
       {currentScreen === 'landing' && (
@@ -1570,7 +1571,6 @@ export default function MainPage() {
           handleManualReportGeneration={async () => {
             try {
               await handleManualReportGeneration();
-              setCurrentScreen('results');
             } catch (err) {
               setError(err as Error);
             }
@@ -1581,21 +1581,21 @@ export default function MainPage() {
       )}
 
       {/* Results Screen */}
-      {currentScreen === 'results' && (
-        <ResultsScreen
-          finalReport={finalReport}
-          isLoadingTrials={isLoadingTrials}
-          onStartNewSearch={async () => {
-            try {
-              logger.debug('Starting new search from results screen');
-              await connectConversation();
-              setCurrentScreen('voiceChat');
-            } catch (error) {
-              logger.error('Error starting new search:', error);
-              // Could add error handling UI here
-            }
-          }}
-        />
+          {currentScreen === 'results' && finalReport && (
+              <ResultsScreen
+                  finalReport={finalReport}
+                  isLoadingTrials={isLoadingTrials}
+                  onStartNewSearch={async () => {
+                      try {
+                          logger.debug('Starting new search from results screen');
+                          await connectConversation();
+                          setCurrentScreen('voiceChat');
+                      } catch (error) {
+                          logger.error('Error starting new search:', error);
+                          // Could add error handling UI here
+                      }
+                  }}
+              />
       )}
 
       {/* Error Boundary */}
