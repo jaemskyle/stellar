@@ -3,19 +3,20 @@
 // src/components/MainPage.tsx
 import { logger } from '@/utils/logger';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
+// import { ScrollArea } from '@/components/ui/scroll-area';
 // import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RealtimeClient } from '@openai/realtime-api-beta';
 import type {
-  InputTextContentType,
+  // InputTextContentType,
   ItemType,
 } from '@openai/realtime-api-beta/dist/lib/client.js';
-import { Eye, EyeOff, Mic, MicOff, PhoneOff, Settings } from 'lucide-react';
+import { Eye, EyeOff, Mic, PhoneOff, Settings } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+// import { motion, AnimatePresence } from 'framer-motion';
 // Import all the required utilities and tools
+import { useAudioManager } from '@/hooks/useAudioManager';
 import { WavRecorder, WavStreamPlayer } from '@/lib/wavtools/index.js';
-// import { WavRenderer } from '@/utils/wav_renderer';
+
 import { instructions } from '@/utils/model_instructions.js';
 import {
   CTG_TOOL_DEFINITION,
@@ -31,7 +32,11 @@ import {
 import ResultsScreen from './ResultsScreen';
 // import ReportModal from '@/components/ReportModal';
 // import TrialsDisplay from './TrialsDisplay';
-// import { ConversationView } from './ConversationView';
+import { ConversationView } from '@/components/conversation/ConversationView';
+import { StatusIndicator } from '@/components/ui/StatusIndicator';
+import { AudioVisualization } from '@/components/ui/AudioVisualization';
+// import { AudioPlayer } from '@/components/ui/AudioPlayer';
+import { LandingScreen } from '@/components/screens/LandingScreen';
 
 // Constants
 const LOCAL_RELAY_SERVER_URL: string =
@@ -44,9 +49,7 @@ interface RealtimeEvent {
   count?: number;
   event: { [key: string]: any };
 }
-interface LandingScreenProps {
-  onStart: () => Promise<void>;
-}
+
 export default function MainPage() {
   console.log('====== MAINPAGE COMPONENT FUNCTION START ======');
   // Add a visible indicator
@@ -87,21 +90,6 @@ export default function MainPage() {
   // Add error handling state
   const [error, setError] = useState<Error | null>(null);
 
-  /**
-   * Instantiate:
-   * - WavRecorder (speech input)
-   * - WavStreamPlayer (speech output)
-   * - RealtimeClient (API client)
-   */
-  const wavRecorderRef = useRef<WavRecorder>(
-    new WavRecorder({ sampleRate: 24000 })
-  );
-  const wavStreamPlayerRef = useRef<WavStreamPlayer>(
-    new WavStreamPlayer({ sampleRate: 24000 })
-  );
-  const [canPushToTalk, setCanPushToTalk] = useState(true);
-  const [isRecording, setIsRecording] = useState(false);
-
   // Trials and Report State
   const [, setTrials] = useState<StudyInfo[]>([]);
   const [isLoadingTrials, setIsLoadingTrials] = useState(false);
@@ -109,13 +97,32 @@ export default function MainPage() {
   // const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   // UI Refs
-  const animationFrameRef = useRef<number>();
+  // const animationFrameRef = useRef<number>();
   // const visualizerRef = useRef<HTMLCanvasElement>(null);
   // const eventsScrollRef = useRef<HTMLDivElement>(null);
   // const eventsScrollHeightRef = useRef(0);
 
   // Add state for tracking active response
   const [activeResponseId, setActiveResponseId] = useState<string | null>(null);
+
+  /**
+   * Audio Management
+   * Handles all audio recording and playback functionality
+   */
+  const {
+    isRecording,
+    canPushToTalk,
+    startRecording,
+    stopRecording,
+    resetAudioState,
+    initializeAudio,
+    changeTurnEndType,
+    wavRecorderRef,
+    wavStreamPlayerRef,
+  } = useAudioManager({
+    client: clientRef.current,
+    activeResponseId,
+  });
 
   /**
    * When you click the API key
@@ -129,10 +136,6 @@ export default function MainPage() {
       window.location.reload();
     }
   }, []);
-
-  // Continue with Part 2 for the core functionality and UI
-  // components...
-  // ... continuing from Part 1
 
   /**
    * Tool Management
@@ -247,7 +250,6 @@ export default function MainPage() {
    * Connection Management
    * Connect to conversation:
    * Handles establishing and terminating connections
-   * WavRecorder takes speech input, WavStreamPlayer output, client is API client
    */
   const connectConversation = useCallback(async () => {
     logger.log('====== CONNECTING CONVERSATION ======');
@@ -273,59 +275,29 @@ export default function MainPage() {
       client.updateSession(); // ? Do we need this??
     }
 
-    const wavRecorder = wavRecorderRef.current;
-    const wavStreamPlayer = wavStreamPlayerRef.current;
-
     // Set state variables
     startTimeRef.current = new Date().toISOString();
     setIsConnected(true);
     setRealtimeEvents([]);
     setItems(client.conversation.getItems());
 
-    // Connect to microphone
-    logger.debug(
-      'DEBUG: Initializing audio recorder (wavRecorder) asynchronously'
-    );
-    await wavRecorder.begin();
-    // Connect to audio output
-    logger.debug(
-      'DEBUG: Initializing audio stream player (wavStreamPlayer) asynchronously'
-    );
-    await wavStreamPlayer.connect();
+    // Initialize audio devices
+    await initializeAudio();
 
     // Connect to realtime API
     logger.debug('DEBUG: await client.connect() - pre-try');
     await client.connect();
     logger.debug('DEBUG: await client.connect() - post-try');
 
-    // const userMessageContent: InputTextContentType[] = [
-    //   {
-    //     type: 'input_text',
-    //     text: `Hello! I'm the engineer developing this application, and I'm just performing some tests. We don't need to talk about clinical trials or anything. Just perform a sample search, like for the latest clinical trials on ADHD. That's it.`,
-    //   },
-    // ];
-    // logger.debug('!!!!! jb ==userMessageContent', userMessageContent);
-      // client.sendUserMessageContent(userMessageContent);
-
-    // client.sendUserMessageContent([
-    //   {
-    //     type: `input_text`,
-    //     text: `Hello! I'm the engineer developing this application, and I'm just performing some tests. We don't need to talk about clinical trials or anything. Just perform a sample search, like for the latest clinical trials on ADHD. That's it.`,
-    //   },
-    // ]);
-      // logger.debug('DEBUG: Sent text message:', userMessageContent);
-
-    // logger.log('Forcing model response generation');
-    // client.createResponse();
-    logger.log('Model response creation complete');
-
-    if (client.getTurnDetectionType() === 'server_vad') {
+    const wavRecorder = wavRecorderRef.current;
+    if (wavRecorder && client.getTurnDetectionType() === 'server_vad') {
       await wavRecorder.record(data => client.appendInputAudio(data.mono));
     }
 
     logger.log('====== CONVERSATION CONNECTION COMPLETE ======');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientRef]);
+  }, [clientRef, initializeAudio, wavRecorderRef]);
+  // }, [clientRef]);
 
   /**
    * Disconnect and reset conversation state
@@ -346,14 +318,8 @@ export default function MainPage() {
     const client = clientRef.current;
     client?.disconnect(); // Safely disconnect if client exists
 
-    const wavRecorder = wavRecorderRef.current;
-    await wavRecorder.end();
-
-    const wavStreamPlayer = wavStreamPlayerRef.current;
-    wavStreamPlayer.interrupt();
-  }, [clientRef]);
-  // }, [clientRef, wavRecorderRef, wavStreamPlayerRef]);
-  // }, [apiKey, clientRef, wavRecorderRef, wavStreamPlayerRef]);
+    await resetAudioState();
+  }, [clientRef, resetAudioState]);
 
   /**
    * Full cleanup including report data
@@ -366,76 +332,10 @@ export default function MainPage() {
   }, [disconnectConversation]);
 
   /**
-   * Audio Management
-   * Handles all audio recording and playback functionality
-   */
-  const startRecording = async () => {
-    // if (!clientRef.current) return;
-
-    setIsRecording(true);
-    const client = clientRef.current;
-    if (!client) return;
-    const wavRecorder = wavRecorderRef.current;
-    const wavStreamPlayer = wavStreamPlayerRef.current;
-    const trackSampleOffset = wavStreamPlayer.interrupt();
-    if (trackSampleOffset?.trackId) {
-      const { trackId, offset } = trackSampleOffset;
-      client.cancelResponse(trackId, offset);
-    }
-    await wavRecorder.record(data => client.appendInputAudio(data.mono));
-  };
-
-  /**
-   * In push-to-talk mode, stop recording
-   */
-  const stopRecording = async () => {
-    logger.debug('Stopping recording. Current setIsRecording: ', isRecording);
-    if (!clientRef.current || !isRecording) return;
-
-    setIsRecording(false);
-    const client = clientRef.current;
-    const wavRecorder = wavRecorderRef.current;
-    await wavRecorder.pause();
-    // Only create response if no active response
-    if (!activeResponseId) {
-      client.createResponse();
-    } else {
-      logger.warn(
-        'Skipping response creation - active response exists:',
-        activeResponseId
-      );
-    }
-    logger.debug('Recording stopped');
-  };
-
-  /**
-   * Switch between Manual <> VAD mode for communication
-   * Handles turn detection type changes
-   */
-  const changeTurnEndType = async (value: string) => {
-    // if (!clientRef.current) return;
-
-    const client = clientRef.current;
-    if (!client) return;
-    const wavRecorder = wavRecorderRef.current;
-    if (value === 'none' && wavRecorder.getStatus() === 'recording') {
-      await wavRecorder.pause();
-    }
-    client.updateSession({
-      turn_detection: value === 'none' ? null : { type: 'server_vad' },
-    });
-    if (value === 'server_vad' && client.isConnected()) {
-      await wavRecorder.record(data => client.appendInputAudio(data.mono));
-    }
-    setCanPushToTalk(value === 'none');
-  };
-
-  /**
    * Report Management
    * Handles manual report generation and conversation end
    */
   const handleManualReportGeneration = useCallback(async () => {
-
     if (!reportHandler.getLatestTrials().length) {
       logger.warn('No trials available for report generation');
       // First disconnect conversation
@@ -457,7 +357,8 @@ export default function MainPage() {
       setFinalReport(report);
       logger.log('Report set:', report);
 
-
+      // Disconnect conversation
+      await disconnectConversation();
 
       // setIsReportModalOpen(true); // Open modal after report
       // generation
@@ -473,9 +374,6 @@ export default function MainPage() {
       // Optionally show error to user
     }
   }, [memoryKv, disconnectConversation]);
-
-
-
 
   /**
    * Delete a conversation item by its ID.
@@ -509,9 +407,6 @@ export default function MainPage() {
   useEffect(() => {
     // Skip API key fetch if using relay server
     if (LOCAL_RELAY_SERVER_URL) {
-      // logger.log(
-      //   '~~~~~~ Client Already Initialized (with Relay Server) ~~~~~~'
-      // );
       logger.log(
         '~~~~~~ RELAY SERVER DETECTED ~~~~~~',
         '\nSetting up RealtimeClient with relay server'
@@ -519,7 +414,6 @@ export default function MainPage() {
       clientRef.current = new RealtimeClient({ url: LOCAL_RELAY_SERVER_URL });
       setIsInitialized(true);
       setIsLoading(false);
-      // logger.log('~~~~~~ RELAY SERVER DETECTED ~~~~~~');
       // logger.log('****** Skipping API key fetch ******');
       logger.log(
         '~~~~~~ CLIENT INITIALIZED WITH RELAY SERVER ~~~~~~',
@@ -569,26 +463,6 @@ export default function MainPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // /**
-  //  * ? RealtimeClient Initialization (or re-initialization?) when API
-  //  * ? key changes
-  //  * ? Initialize RealtimeClient with API key on API key change
-  //  */
-  // useEffect(() => {
-  //   if (apiKey) {
-  //     logger.log('Initializing RealtimeClient with API key:', apiKey);
-  //     // clientRef.current = new RealtimeClient({ url: LOCAL_RELAY_SERVER_URL });
-  //     clientRef.current = new RealtimeClient(
-  //       LOCAL_RELAY_SERVER_URL
-  //         ? { url: LOCAL_RELAY_SERVER_URL }
-  //         : {
-  //             apiKey: apiKey,
-  //             dangerouslyAllowAPIKeyInBrowser: true,
-  //           }
-  //     );
-  //   }
-  // }, [apiKey]);
-
   /**
    * Core RealtimeClient and audio capture setup
    * Set all of our instructions, tools, events and more
@@ -603,9 +477,15 @@ export default function MainPage() {
     // Get refs
     const client = clientRef.current;
     const wavStreamPlayer = wavStreamPlayerRef.current;
+    // if (!wavStreamPlayer) return;
+
     // if (!client) return;
     if (!client) {
       console.error('Client not initialized despite isInitialized flag');
+      return;
+    }
+    if (!wavStreamPlayer) {
+      console.error('wavStreamPlayer is null or undefined');
       return;
     }
 
@@ -652,7 +532,6 @@ export default function MainPage() {
             realtimeEvent
           );
           logger.error(client.conversation.responses);
-          // ║ Event: ${JSON.stringify(realtimeEvent.event)}
         } else if (realtimeEvent.source === 'client') {
           logger.log(
             `
@@ -737,7 +616,6 @@ export default function MainPage() {
         );
 
         const trackSampleOffset = wavStreamPlayer.interrupt();
-
         if (trackSampleOffset?.trackId) {
           logger.info(
             `[INTERRUPT] Canceling response for track: ${trackSampleOffset.trackId}`
@@ -752,16 +630,6 @@ export default function MainPage() {
       },
 
       'conversation.updated': async ({ item, delta }: any) => {
-        // logger.log(
-        //   `
-        //   ┌──────────────────────────────
-        //   │ CONVERSATION UPDATE
-        //   │ Item ID: ${item.id}
-        //   │ Status: ${item.status}
-        //   │ ¶¶¶¶¶ HAS AUDIO DELTA: ${!!delta?.audio} ¶¶¶¶¶
-        //   └──────────────────────────────
-        //   `
-        // );
         logger.log(
           `CONVERSATION UPDATE --- Item ID: ${item.id}; Status: ${item.status}; ¶¶¶¶¶ HAS AUDIO DELTA: ${!!delta?.audio} ¶¶¶¶¶`
         );
@@ -780,6 +648,7 @@ export default function MainPage() {
           );
           wavStreamPlayer.add16BitPCM(delta.audio, item.id);
         }
+
         if (item.status === 'completed' && item.formatted.audio?.length) {
           logger.info(
             '[AUDIO] AUDIO PLAYBACK COMPLETED for item ${item.id}',
@@ -807,10 +676,20 @@ export default function MainPage() {
     setItems(client.conversation.getItems());
 
     logger.log('====== CORE SETUP COMPLETE ======');
+
     return () => {
-      client.reset(); // cleanup; resets to defaults
+      logger.log('Cleaning up core setup');
+      // Clean up event listeners and reset client
+      Object.entries(eventHandlers).forEach(([event, handler]) => {
+        client.off(event, handler);
+      });
+
+      // Cleanup audio resources
+      if (wavStreamPlayer) {
+        wavStreamPlayer.interrupt();
+      }
     };
-  }, [isInitialized]); // Run when initialization completes
+  }, [isInitialized, clientRef, wavRecorderRef, wavStreamPlayerRef]);
 
   /**
    * Tool and Core Setup
@@ -856,160 +735,6 @@ export default function MainPage() {
   /* ---------------------------------------------------------------- */
   /* ---------------------------------------------------------------- */
 
-  // Audio Visualization Effect
-  // First, let's add new components for status handling
-
-  const StatusIndicator = ({
-    isConnected,
-    isRecording,
-    hasError,
-  }: {
-    isConnected: boolean;
-    isRecording: boolean;
-    hasError: boolean;
-  }) => (
-    <div className="absolute top-4 left-4 flex items-center space-x-2">
-      <div
-        className={`h-2 w-2 rounded-full ${
-          isConnected ? 'bg-green-500' : hasError ? 'bg-red-500' : 'bg-gray-500'
-        }`}
-      />
-      <span className="text-sm text-gray-600">
-        {hasError
-          ? 'Error'
-          : isConnected
-            ? isRecording
-              ? 'Recording'
-              : 'Connected'
-            : 'Disconnected'}
-      </span>
-    </div>
-  );
-
-  const AudioVisualization = ({
-    isRecording,
-    wavRecorderRef,
-    wavStreamPlayerRef,
-  }: {
-    isRecording: boolean;
-    wavRecorderRef: React.RefObject<WavRecorder>;
-    wavStreamPlayerRef: React.RefObject<WavStreamPlayer>;
-  }) => {
-    const clientCanvasRef = useRef<HTMLCanvasElement>(null);
-    const serverCanvasRef = useRef<HTMLCanvasElement>(null);
-    // const animationFrameRef = useRef<number>();
-
-    useEffect(() => {
-      if (!clientCanvasRef.current || !serverCanvasRef.current) return;
-
-      const clientCanvas = clientCanvasRef.current;
-      const serverCanvas = serverCanvasRef.current;
-      const clientCtx = clientCanvas.getContext('2d');
-      const serverCtx = serverCanvas.getContext('2d');
-
-      if (!clientCtx || !serverCtx) return;
-
-      let isLoaded = true;
-
-      const animate = () => {
-        // Draw input audio visualization (circular)
-        const width = clientCanvas.width;
-        const height = clientCanvas.height;
-
-        // Clear both canvases
-        clientCtx.clearRect(0, 0, width, height);
-        serverCtx.clearRect(0, 0, width, height);
-
-        // Draw input visualization
-        if (isRecording) {
-          // Base circle
-          clientCtx.beginPath();
-          clientCtx.arc(width / 2, height / 2, 50, 0, 2 * Math.PI);
-          clientCtx.strokeStyle = '#666';
-          clientCtx.lineWidth = 2;
-          clientCtx.stroke();
-
-          // Animated waves
-          const time = Date.now() / 1000;
-          const numWaves = 3;
-
-          for (let i = 0; i < numWaves; i++) {
-            const audioData =
-              wavRecorderRef.current?.getFrequencies?.('voice')?.values;
-            const audioInfluence = audioData
-              ? Array.from(audioData).reduce((sum, val) => sum + val, 0) /
-                audioData.length
-              : Math.sin(time * 2 + i);
-
-            const radius = 50 + audioInfluence * 10;
-
-            clientCtx.beginPath();
-            clientCtx.arc(width / 2, height / 2, radius, 0, 2 * Math.PI);
-            clientCtx.strokeStyle = `rgba(0, 153, 255, ${0.3 - i * 0.1})`;
-            clientCtx.stroke();
-          }
-        }
-
-        // Draw output visualization (small waveform)
-        if (wavStreamPlayerRef.current?.analyser) {
-          const values =
-            wavStreamPlayerRef.current.getFrequencies('voice')?.values ||
-            new Float32Array([0]);
-
-          serverCtx.beginPath();
-          serverCtx.moveTo(0, height / 2);
-
-          values.forEach((value, index) => {
-            const x = (index / values.length) * width;
-            const y = height / 2 + (value * height) / 4;
-            serverCtx.lineTo(x, y);
-          });
-
-          serverCtx.strokeStyle = '#009900';
-          serverCtx.stroke();
-        }
-
-        if (isLoaded) {
-          animationFrameRef.current = requestAnimationFrame(animate);
-        }
-      };
-
-      animate();
-
-      return () => {
-        isLoaded = false;
-        if (animationFrameRef.current) {
-          cancelAnimationFrame(animationFrameRef.current);
-        }
-      };
-    }, [isRecording, wavRecorderRef, wavStreamPlayerRef]);
-
-    return (
-      <div className="relative flex flex-col items-center space-y-2">
-        <canvas
-          ref={clientCanvasRef}
-          className="w-32 h-32 rounded-full bg-gray-50"
-          width={128}
-          height={128}
-        />
-        <canvas
-          ref={serverCanvasRef}
-          className="w-32 h-8 rounded-lg bg-gray-50"
-          width={128}
-          height={32}
-        />
-      </div>
-    );
-  };
-
-  const AudioPlayer = ({ file }: { file: { url: string } }) => (
-    <div className="mt-2">
-      <audio src={file.url} controls className="w-full max-w-xs" />
-    </div>
-  );
-
-  /* ---------------------------------------------------------------- */
-
   useEffect(() => {
     logger.log('====== CURRENT SCREEN:', currentScreen, '======');
     // logger.log('Current screen:', currentScreen); // Add logging
@@ -1043,227 +768,6 @@ export default function MainPage() {
   /* ---------------------------------------------------------------- */
   /* ---------------------------------------------------------------- */
 
-  // UI Components
-  const LandingScreen: React.FC<LandingScreenProps> = ({ onStart }) => (
-    <div className="flex flex-col flex-grow overflow-auto items-center justify-center p-6 text-center">
-      <h1 className="text-5xl font-bold leading-tight mb-6">
-        Find the Right Clinical Trial.
-        <br />
-        Anywhere, Anytime.
-      </h1>
-      <p className="text-lg text-gray-600 mb-16 max-w-2xl">
-        {/* add line break after "Search for trials..." */}
-        Search for trials in your language, tailored to your knowledge level.
-        <br />
-        Simplifying access for patients and caregivers worldwide.
-      </p>
-      <div className="flex flex-col items-center">
-        <p className="text-sm mb-4">Tap to start</p>
-        <button
-          // variant="outline"
-          // size="icon"
-          className="w-20 h-20 rounded-full bg-black hover:bg-gray-800 transition-colors flex items-center justify-center"
-          onClick={() => {
-            // logger.log('Button clicked - immediate feedback');
-            onStart();
-          }}
-          // onClick={async () => {
-          //   await connectConversation();
-          //   setCurrentScreen('voiceChat');
-          // }}
-        >
-          <Mic className="w-8 h-8 text-white" />
-        </button>
-      </div>
-    </div>
-  );
-
-  // const LandingScreen = () => (
-  //   <div className="flex flex-col items-center justify-center min-h-screen p-6 text-center">
-  //     <h1 className="text-5xl font-bold leading-tight mb-6">
-  //       Find the Right Clinical Trial, Anywhere, Anytime
-  //     </h1>
-  //     <p className="text-lg text-gray-600 mb-16 max-w-2xl">
-  //       Search for trials in your language, tailored to your knowledge level.
-  //       Simplifying access for patients and caregivers worldwide
-  //     </p>
-  //     <div className="flex flex-col items-center">
-  //       <p className="text-sm mb-4">Tap to start</p>
-  //       <button
-  //         // variant="outline"
-  //         // size="icon"
-  //         className="w-20 h-20 rounded-full bg-black hover:bg-gray-800 transition-colors flex items-center justify-center"
-  //         onClick={() => {
-  //           logger.log('Button clicked - immediate feedback');
-  //           handleStart();
-  //         }}
-  //         // onClick={async () => {
-  //         //   await connectConversation();
-  //         //   setCurrentScreen('voiceChat');
-  //         // }}
-  //       >
-  //         <Mic className="w-8 h-8 text-white" />
-  //       </button>
-  //     </div>
-  //   </div>
-  // );
-
-  /* ---------------------------------------------------------------- */
-  /* ---------------------------------------------------------------- */
-  /* ---------------------------------------------------------------- */
-
-  // Enhanced conversation components with proper message handling
-  const ConversationView = ({
-    items,
-    showConversation,
-  }: {
-    items: ItemType[];
-    showConversation: boolean;
-  }) => {
-    const scrollRef = React.useRef<HTMLDivElement>(null);
-    const [autoScroll, setAutoScroll] = React.useState(true);
-
-    React.useEffect(() => {
-      if (autoScroll && scrollRef.current) {
-        const scrollElement = scrollRef.current;
-        scrollElement.scrollTop = scrollElement.scrollHeight;
-      }
-    }, [items, autoScroll]);
-
-    const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
-      const { scrollTop, scrollHeight, clientHeight } = event.currentTarget;
-      const isNearBottom = scrollHeight - scrollTop - clientHeight < 50;
-      setAutoScroll(isNearBottom);
-    };
-
-    if (!showConversation) return null;
-
-    return (
-      <ScrollArea
-        ref={scrollRef}
-        onScroll={handleScroll}
-        className="w-full h-[500px] border border-gray-200 dark:border-gray-800 rounded-xl bg-white/50 dark:bg-black/50 backdrop-blur-xl shadow-sm overflow-auto flex-wrap"
-        // viewportClassName="h-full" // ? What's the right property here?
-      >
-        <div className="p-6 space-y-4">
-          {!items.length ? (
-            <div className="flex items-center justify-center h-full flex-wrap">
-              <div className="text-center text-gray-500 dark:text-gray-400">
-                <div className="mb-2 text-lg font-medium">No messages yet</div>
-                <div className="text-sm">
-                  Your conversation will appear here
-                </div>
-              </div>
-            </div>
-          ) : (
-            items.map(item => <ConversationItem key={item.id} item={item} />)
-          )}
-        </div>
-      </ScrollArea>
-    );
-  };
-
-  const ConversationItem = ({ item }: { item: ItemType }) => {
-    const getContent = () => {
-      if (item.type === 'function_call_output') {
-        return (
-          // <div className="text-sm text-gray-600 dark:text-gray-300 break-words whitespace-pre-wrap flex-wrap text-wrap">
-          //   {item.formatted.output}
-          // </div>
-          null
-        );
-      }
-
-      if (item.formatted.tool) {
-        return (
-          <div className="text-sm text-gray-600 dark:text-gray-300 break-words whitespace-pre-wrap flex-wrap">
-            {item.formatted.tool.name}({item.formatted.tool.arguments})
-          </div>
-        );
-      }
-
-      if (item.role === 'user') {
-        return (
-          <div className="text-sm break-words whitespace-pre-wrap flex-wrap">
-            {item.formatted.transcript ||
-              (item.formatted.audio?.length
-                ? '(awaiting transcript)'
-                : item.formatted.text || '(item sent)')}
-          </div>
-        );
-      }
-
-      if (item.role === 'assistant') {
-        return (
-          <div className="text-sm break-words whitespace-pre-wrap flex-wrap">
-            {item.formatted.transcript || item.formatted.text || '(truncated)'}
-          </div>
-        );
-      }
-
-      return null;
-    };
-
-    const getRoleStyles = () => {
-      switch (item.role) {
-        case 'system':
-          return 'bg-gray-50 dark:bg-gray-900 border-gray-100 dark:border-gray-800';
-        case 'assistant':
-          return 'bg-blue-50 dark:bg-blue-900/20 border-blue-100 dark:border-blue-800/30';
-        default:
-          return 'bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-800/30';
-      }
-    };
-
-    return (
-      <div className="group animate-fade-in">
-        <div
-          className={`relative border rounded-lg overflow-hidden transition-all ${getRoleStyles()}`}
-        >
-          <div className="px-4 py-3 flex items-center justify-between border-b border-inherit">
-            <div className="flex items-center space-x-2">
-              <span className="text-xs font-medium uppercase tracking-wider text-gray-600 dark:text-gray-300">
-                {(item.role || item.type).replaceAll('_', ' ')}
-              </span>
-            </div>
-            <button
-              onClick={() => deleteConversationItem(item.id)}
-              className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
-          </div>
-          <div className="p-4">
-            <div className="text-gray-800 dark:text-gray-200 max-w-full overflow-hidden">
-              {getContent()}
-            </div>
-            {item.formatted.file && (
-              <div className="mt-2">
-                <AudioPlayer file={item.formatted.file} />
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  /* ---------------------------------------------------------------- */
-  /* ---------------------------------------------------------------- */
-  /* ---------------------------------------------------------------- */
-
   const ErrorDisplay = ({ error }: { error: Error | null }) => {
     if (!error) return null;
 
@@ -1280,12 +784,12 @@ export default function MainPage() {
 
   // Settings Menu Component
   const SettingsMenu = ({
-    resetAPIKey,
+    // resetAPIKey,
     changeTurnEndType,
     canPushToTalk,
     fullCleanup,
   }: {
-    resetAPIKey: () => void;
+    // resetAPIKey: () => void;
     changeTurnEndType: (value: string) => Promise<void>;
     canPushToTalk: boolean;
     fullCleanup: () => Promise<void>;
@@ -1404,7 +908,11 @@ export default function MainPage() {
         />
       </div>
 
-      <ConversationView items={items} showConversation={showConversation} />
+      <ConversationView
+        items={items}
+        showConversation={showConversation}
+        onDeleteItem={deleteConversationItem}
+      />
 
       <div className="w-full max-w-md flex justify-center space-x-8 mt-8">
         <div className="flex flex-col items-center">
@@ -1537,7 +1045,15 @@ export default function MainPage() {
         </Button>
       )}
 
-
+      {/* Settings Menu - Only show when NOT on results screen */}
+      {showSettings && currentScreen !== 'results' && (
+        <SettingsMenu
+          // resetAPIKey={resetAPIKey}
+          changeTurnEndType={changeTurnEndType}
+          canPushToTalk={canPushToTalk}
+          fullCleanup={fullCleanup}
+        />
+      )}
 
       {/* Landing Screen */}
       {currentScreen === 'landing' && (
@@ -1581,21 +1097,21 @@ export default function MainPage() {
       )}
 
       {/* Results Screen */}
-          {currentScreen === 'results' && finalReport && (
-              <ResultsScreen
-                  finalReport={finalReport}
-                  isLoadingTrials={isLoadingTrials}
-                  onStartNewSearch={async () => {
-                      try {
-                          logger.debug('Starting new search from results screen');
-                          await connectConversation();
-                          setCurrentScreen('voiceChat');
-                      } catch (error) {
-                          logger.error('Error starting new search:', error);
-                          // Could add error handling UI here
-                      }
-                  }}
-              />
+      {currentScreen === 'results' && finalReport && (
+        <ResultsScreen
+          finalReport={finalReport}
+          isLoadingTrials={isLoadingTrials}
+          onStartNewSearch={async () => {
+            try {
+              logger.debug('Starting new search from results screen');
+              await connectConversation();
+              setCurrentScreen('voiceChat');
+            } catch (error) {
+              logger.error('Error starting new search:', error);
+              // Could add error handling UI here
+            }
+          }}
+        />
       )}
 
       {/* Error Boundary */}
