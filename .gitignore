@@ -36,3 +36,5 @@ eslint.config.mjs
 misc/
 
 patches_backup
+
+node_modules.nosync
