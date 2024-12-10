@@ -5,7 +5,8 @@ dist/
 .astro/
 
 # dependencies
-node_modules/
+node_modules
+node_modules.nosync
 
 # logs
 npm-debug.log*
@@ -35,3 +36,5 @@ eslint.config.mjs
 misc/
 
 patches_backup
+
+node_modules.nosync

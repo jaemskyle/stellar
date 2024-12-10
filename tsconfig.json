@@ -1,30 +1,36 @@
 {
   "extends": "astro/tsconfigs/strict",
   "compilerOptions": {
+    // JSX and React settings
     "jsx": "react-jsx",
     "jsxImportSource": "react",
+    // Path and module resolution
     "baseUrl": ".",
     "paths": {
       "@/*": [
         "./src/*"
       ]
     },
+    "moduleResolution": "bundler",
+    // JavaScript and target compatibility
     "target": "ESNext",
+    "module": "esnext",
     "lib": [
       "dom",
       "dom.iterable",
-      "esnext",
+      "esnext"
     ],
     "allowJs": true,
-    "skipLibCheck": true,
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    // Type-checking and strictness
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
-    "module": "esnext",
-    "moduleResolution": "node",
-    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    // Module interoperability
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    // Build and emit settings
     "isolatedModules": true,
     "noEmit": true
   },

@@ -12,7 +12,7 @@ import type {
 } from '@openai/realtime-api-beta/dist/lib/client.js';
 import { Eye, EyeOff, Mic, MicOff, PhoneOff, Settings } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-
+import { motion, AnimatePresence } from 'framer-motion';
 // Import all the required utilities and tools
 import { WavRecorder, WavStreamPlayer } from '@/lib/wavtools/index.js';
 // import { WavRenderer } from '@/utils/wav_renderer';
@@ -27,11 +27,11 @@ import {
   reportHandler,
   type TrialsReport,
 } from '../lib/report-handler';
-
 // Import components
 import ResultsScreen from './ResultsScreen';
 // import ReportModal from '@/components/ReportModal';
 // import TrialsDisplay from './TrialsDisplay';
+// import { ConversationView } from './ConversationView';
 
 // Constants
 const LOCAL_RELAY_SERVER_URL: string =
@@ -48,7 +48,7 @@ interface LandingScreenProps {
   onStart: () => Promise<void>;
 }
 export default function MainPage() {
-  logger.log('====== MAINPAGE COMPONENT FUNCTION START ======');
+  console.log('====== MAINPAGE COMPONENT FUNCTION START ======');
   // Add a visible indicator
   useEffect(() => {
     logger.log('MAINPAGE TEST useEffect()');
@@ -113,6 +113,9 @@ export default function MainPage() {
   // const visualizerRef = useRef<HTMLCanvasElement>(null);
   // const eventsScrollRef = useRef<HTMLDivElement>(null);
   // const eventsScrollHeightRef = useRef(0);
+
+  // Add state for tracking active response
+  const [activeResponseId, setActiveResponseId] = useState<string | null>(null);
 
   /**
    * When you click the API key
@@ -258,6 +261,7 @@ export default function MainPage() {
 
     const client = clientRef.current;
     if (!client) return;
+    window.debugClient = clientRef.current;
 
     // if clientRef.current.tools object is empty trigger addTools
     const toolsList = Object.keys(client.tools);
@@ -392,7 +396,15 @@ export default function MainPage() {
     const client = clientRef.current;
     const wavRecorder = wavRecorderRef.current;
     await wavRecorder.pause();
-    client.createResponse();
+    // Only create response if no active response
+    if (!activeResponseId) {
+      client.createResponse();
+    } else {
+      logger.warn(
+        'Skipping response creation - active response exists:',
+        activeResponseId
+      );
+    }
     logger.debug('Recording stopped');
   };
 
@@ -624,6 +636,7 @@ export default function MainPage() {
             `,
             realtimeEvent
           );
+          logger.error(client.conversation.responses);
         } else if (realtimeEvent.source === 'server') {
           logger.log(
             `
@@ -631,11 +644,14 @@ export default function MainPage() {
             ║ REALTIME EVENT - RECEIVED FROM ${realtimeEvent.source}
             ║ Type: ${realtimeEvent.event.type}
             ║ Time: ${realtimeEvent.time}
-            ║ Event:
+            ║ Event ID: ${realtimeEvent.event.event_id}
+            ║ Item ID: ${realtimeEvent.event.item?.id}
+            ║ Event Details Below:
             ╚════════════════════════════════════════════════════════════════════════════════
             `,
             realtimeEvent
           );
+          logger.error(client.conversation.responses);
           // ║ Event: ${JSON.stringify(realtimeEvent.event)}
         } else if (realtimeEvent.source === 'client') {
           logger.log(
@@ -644,11 +660,14 @@ export default function MainPage() {
             + REALTIME EVENT - SENT BY ${realtimeEvent.source}
             + Type: ${realtimeEvent.event.type}
             + Time: ${realtimeEvent.time}
-            + Event:
+            + Event ID: ${realtimeEvent.event.event_id}
+            + Item ID: ${realtimeEvent.event.item?.id}
+            + Event Details Below:
             +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             `,
             realtimeEvent
           );
+          logger.error(client.conversation.responses);
         } else {
           logger.log(
             `
@@ -659,6 +678,22 @@ export default function MainPage() {
             ! Details:
             `,
             realtimeEvent
+          );
+        }
+
+        // Track response.audio.delta events which contain response_id
+        if (
+          realtimeEvent.event.type === 'response.audio.delta' &&
+          realtimeEvent.event.response_id
+        ) {
+          setActiveResponseId(realtimeEvent.event.response_id);
+        }
+
+        // Clear active response when done
+        if (realtimeEvent.event.type === 'response.done') {
+          setActiveResponseId(null);
+          logger.error(
+            `Response count: ${client.conversation.responses.length}`
           );
         }
 
@@ -717,15 +752,18 @@ export default function MainPage() {
       },
 
       'conversation.updated': async ({ item, delta }: any) => {
+        // logger.log(
+        //   `
+        //   ┌──────────────────────────────
+        //   │ CONVERSATION UPDATE
+        //   │ Item ID: ${item.id}
+        //   │ Status: ${item.status}
+        //   │ ¶¶¶¶¶ HAS AUDIO DELTA: ${!!delta?.audio} ¶¶¶¶¶
+        //   └──────────────────────────────
+        //   `
+        // );
         logger.log(
-          `
-          ┌──────────────────────────────
-          │ CONVERSATION UPDATE
-          │ Item ID: ${item.id}
-          │ Status: ${item.status}
-          │ ¶¶¶¶¶ HAS AUDIO DELTA: ${!!delta?.audio} ¶¶¶¶¶
-          └──────────────────────────────
-          `
+          `CONVERSATION UPDATE --- Item ID: ${item.id}; Status: ${item.status}; ¶¶¶¶¶ HAS AUDIO DELTA: ${!!delta?.audio} ¶¶¶¶¶`
         );
 
         if (delta?.audio) {
@@ -799,11 +837,18 @@ export default function MainPage() {
   //   }
   // }, [realtimeEvents]);
 
-  useEffect(() => {
-    document.querySelectorAll('[data-conversation-content]').forEach(el => {
-      (el as HTMLDivElement).scrollTop = el.scrollHeight;
-    });
-  }, [items]);
+  // /**
+  //  * Auto-scroll the conversation logs
+  //  */
+  // useEffect(() => {
+  //   const conversationEls = [].slice.call(
+  //     document.body.querySelectorAll('[data-conversation-content]')
+  //   );
+  //   for (const el of conversationEls) {
+  //     const conversationEl = el as HTMLDivElement;
+  //     conversationEl.scrollTop = conversationEl.scrollHeight;
+  //   }
+  // }, [items]);
 
   /* ---------------------------------------------------------------- */
   /* ---------------------------------------------------------------- */
@@ -1393,7 +1438,7 @@ export default function MainPage() {
             disabled={!isConnected || !canPushToTalk}
           >
             {isRecording ? (
-              <MicOff className="w-6 h-6 text-blue-500" />
+              <Mic className="w-6 h-6 text-blue-500" />
             ) : (
               <Mic className="w-6 h-6" />
             )}
@@ -1423,102 +1468,6 @@ export default function MainPage() {
       </div>
     </div>
   );
-
-  /* ---------------------------------------------------------------- */
-  /* ---------------------------------------------------------------- */
-  /* ---------------------------------------------------------------- */
-
-  // /**
-  //  * ResultsScreen component displays the results of clinical trials and allows users to interact with the application.
-  //  *
-  //  * @param {Object} props - The properties object.
-  //  * @param {StudyInfo[]} props.trials - An array of clinical trial information.
-  //  * @param {boolean} props.isLoadingTrials - A flag indicating if the trials are currently being loaded.
-  //  * @param {Object.<string, any>} props.memoryKv - A key-value store for user information.
-  //  * @param {string} props.activeTab - The currently active tab.
-  //  * @param {function(string): void} props.setActiveTab - Function to set the active tab.
-  //  * @param {function(): Promise<void>} props.connectConversation - Function to initiate a conversation.
-  //  * @param {function(string): void} props.setCurrentScreen - Function to set the current screen.
-  //  * @param {TrialsReport | null} props.finalReport - The final report of the trials.
-  //  *
-  //  * @returns {JSX.Element} The rendered component.
-  //  */
-  // const ResultsScreen = ({
-  //   trials,
-  //   isLoadingTrials,
-  //   memoryKv,
-  //   activeTab,
-  //   setActiveTab,
-  //   connectConversation,
-  //   setCurrentScreen,
-  //   finalReport,
-  //   // isReportModalOpen,
-  //   // setIsReportModalOpen,
-  // }: {
-  //   trials: StudyInfo[];
-  //   isLoadingTrials: boolean;
-  //   memoryKv: { [key: string]: any };
-  //   activeTab: string;
-  //   setActiveTab: (tab: string) => void;
-  //   connectConversation: () => Promise<void>;
-  //   setCurrentScreen: (screen: string) => void;
-  //   finalReport: TrialsReport | null;
-  //   // isReportModalOpen: boolean;
-  //   // setIsReportModalOpen: (open: boolean) => void;
-  // }) => (
-  //   <div className="flex flex-col flex-grow overflow-auto items-center p-6">
-  //     <h1 className="text-4xl font-bold text-center mb-4">
-  //       Clinical Trial Results
-  //       <br />
-  //       Consult with your healthcare professional
-  //     </h1>
-  //     <p className="text-gray-600 text-center mb-8">
-  //       We found {trials.length} matching trials
-  //       <br />
-  //       {isLoadingTrials
-  //         ? 'Loading trials...'
-  //         : `Found ${trials.length} matching trials`}
-  //     </p>
-
-  //     <Button
-  //       className="mb-8 bg-gray-900 text-white"
-  //       onClick={async () => {
-  //         await connectConversation();
-  //         setCurrentScreen('voiceChat');
-  //       }}
-  //     >
-  //       <Mic className="w-4 h-4 mr-2" />
-  //       Start another search
-  //     </Button>
-
-  //     <div className="w-full max-w-2xl">
-  //       <Tabs value={activeTab} onValueChange={setActiveTab}>
-  //         <TabsList className="grid w-full grid-cols-2">
-  //           <TabsTrigger value="results">Results</TabsTrigger>
-  //           <TabsTrigger value="info">Your information</TabsTrigger>
-  //         </TabsList>
-  //         <TabsContent value="results">
-  //           <ScrollArea className="h-[400px] rounded-md border p-4">
-  //             <TrialsDisplay trials={trials} isLoading={isLoadingTrials} />
-  //           </ScrollArea>
-  //         </TabsContent>
-  //         <TabsContent value="info">
-  //           <div className="rounded-md border p-4">
-  //             <pre className="text-sm whitespace-pre-wrap">
-  //               {JSON.stringify(memoryKv, null, 2)}
-  //             </pre>
-  //           </div>
-  //         </TabsContent>
-  //       </Tabs>
-  //     </div>
-
-  //     {/* <ReportModal
-  //       report={finalReport}
-  //       isOpen={isReportModalOpen}
-  //       onClose={() => setIsReportModalOpen(false)}
-  //     /> */}
-  //   </div>
-  // );
 
   /* ---------------------------------------------------------------- */
   /* ---------------------------------------------------------------- */

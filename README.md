@@ -52,3 +52,7 @@ All commands are run from the root of the project, from a terminal:
 ## 👀 Want to learn more?
 
 Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+
+### Note for iCloud Drive Syncing
+
+Install and use the following npm package to prevent iCloud Drive from syncing the `node_modules` folder: [https://github.com/HaoChuan9421/nosync-icloud/blob/master/docs/README_en.md](nosync-icloud)
