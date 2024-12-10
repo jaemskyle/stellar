@@ -321,7 +321,7 @@ export default function MainPage() {
 
     logger.log('====== CONVERSATION CONNECTION COMPLETE ======');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientRef]);
+  }, [clientRef, wavRecorderRef, wavStreamPlayerRef]);
 
   /**
    * Disconnect and reset conversation state
@@ -1578,17 +1578,29 @@ export default function MainPage() {
     >
       {/* Settings Button - Only show when NOT on results screen */}
       {currentScreen !== 'results' && (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="absolute top-4 right-4 z-10"
-          onClick={() => setShowSettings(!showSettings)}
-        >
-          <Settings className="w-5 h-5" />
-        </Button>
+        <div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute top-4 right-4 z-10"
+            onClick={() => setShowSettings(!showSettings)}
+          >
+            <Settings className="w-5 h-5" />
+          </Button>
+        </div>
       )}
 
 
+      {/* Settings Menu - Only show when NOT on results screen */}
+      {showSettings && currentScreen !== 'results' && (
+        <SettingsMenu
+          resetAPIKey={resetAPIKey}
+          changeTurnEndType={changeTurnEndType}
+          canPushToTalk={canPushToTalk}
+          fullCleanup={fullCleanup}
+        />
+      )}
+      
 
       {/* Landing Screen */}
       {currentScreen === 'landing' && (
