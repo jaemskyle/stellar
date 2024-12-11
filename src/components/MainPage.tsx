@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 // import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RealtimeClient } from '@openai/realtime-api-beta';
 import type {
-  // InputTextContentType,
+  InputTextContentType,
   ItemType,
 } from '@openai/realtime-api-beta/dist/lib/client.js';
 import { Eye, EyeOff, Mic, PhoneOff, Settings } from 'lucide-react';
@@ -16,7 +16,6 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 // Import all the required utilities and tools
 import { useAudioManager } from '@/hooks/useAudioManager';
 import { WavRecorder, WavStreamPlayer } from '@/lib/wavtools/index.js';
-
 import { instructions } from '@/utils/model_instructions.js';
 import {
   CTG_TOOL_DEFINITION,
@@ -28,15 +27,15 @@ import {
   reportHandler,
   type TrialsReport,
 } from '../lib/report-handler';
-// Import components
-import ResultsScreen from './ResultsScreen';
-// import ReportModal from '@/components/ReportModal';
-// import TrialsDisplay from './TrialsDisplay';
-import { ConversationView } from '@/components/conversation/ConversationView';
-import { StatusIndicator } from '@/components/ui/StatusIndicator';
-import { AudioVisualization } from '@/components/ui/AudioVisualization';
-// import { AudioPlayer } from '@/components/ui/AudioPlayer';
+
+// Import screens
 import { LandingScreen } from '@/components/screens/LandingScreen';
+import { VoiceChatScreen } from '@/components/screens/VoiceChatScreen';
+import ResultsScreen from '@/components/screens/ResultsScreen';
+import { LoadingState } from '@/components/ui/LoadingState';
+import { ErrorDisplay } from '@/components/ui/ErrorDisplay';
+import { useSettings } from '@/hooks/useSettings';
+import { SettingsMenu } from '@/components/settings/SettingsMenu';
 
 // Constants
 const LOCAL_RELAY_SERVER_URL: string =
@@ -80,7 +79,6 @@ export default function MainPage() {
 
   // UI State
   const [showConversation, setShowConversation] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   // const [activeTab, setActiveTab] = useState('results');
   /* ---------------------------------------------------------------- */
   const [isInitialized, setIsInitialized] = useState(false);
@@ -125,17 +123,10 @@ export default function MainPage() {
   });
 
   /**
-   * When you click the API key
-   * Allows manual reset of the API key
+   * Settings Management
+   * Handles settings UI visibility
    */
-  const resetAPIKey = useCallback(() => {
-    const apiKey = prompt('OpenAI API Key');
-    if (apiKey !== null) {
-      localStorage.clear();
-      localStorage.setItem('tmp::voice_api_key', apiKey);
-      window.location.reload();
-    }
-  }, []);
+  const { showSettings, setShowSettings } = useSettings();
 
   /**
    * Tool Management
@@ -289,6 +280,18 @@ export default function MainPage() {
     await client.connect();
     logger.debug('DEBUG: await client.connect() - post-try');
 
+    const userMessageContent: InputTextContentType[] = [
+      {
+        type: 'input_text',
+        text: `Hello! I'm the engineer developing this application, and I'm just performing some tests. We don't need to talk about clinical trials or anything. Just perform a sample search, like for the latest clinical trials on ADHD. That's it. In addition, please also memorize the fact that I'm 30 years old, and use that information for search filtering purposes. Thanks!`,
+      },
+    ];
+    client.sendUserMessageContent(userMessageContent);
+    logger.debug('DEBUG: Sent text message:', userMessageContent);
+
+    // console.log('Forcing model response generation');
+    // client.createResponse();
+
     const wavRecorder = wavRecorderRef.current;
     if (wavRecorder && client.getTurnDetectionType() === 'server_vad') {
       await wavRecorder.record(data => client.appendInputAudio(data.mono));
@@ -407,19 +410,10 @@ export default function MainPage() {
   useEffect(() => {
     // Skip API key fetch if using relay server
     if (LOCAL_RELAY_SERVER_URL) {
-      logger.log(
-        '~~~~~~ RELAY SERVER DETECTED ~~~~~~',
-        '\nSetting up RealtimeClient with relay server'
-      );
       clientRef.current = new RealtimeClient({ url: LOCAL_RELAY_SERVER_URL });
       setIsInitialized(true);
       setIsLoading(false);
       // logger.log('****** Skipping API key fetch ******');
-      logger.log(
-        '~~~~~~ CLIENT INITIALIZED WITH RELAY SERVER ~~~~~~',
-        isInitialized,
-        isLoading
-      );
       return;
     }
 
@@ -516,7 +510,23 @@ export default function MainPage() {
             `,
             realtimeEvent
           );
-          logger.error(client.conversation.responses);
+          logger.debug(client.conversation.responses);
+          // Check if the error has a message saying exactly:
+          // "Conversation already has an active response", in which
+          // case, we should run `client.createResponse()` to force a
+          // new response. This is a workaround for a bug in the
+          // realtime API.
+          // To access the message, we should use
+          // `realtimeEvent.event.error.message`.
+          if (
+            realtimeEvent.event.error.message ===
+            'Conversation already has an active response'
+          ) {
+            // Add a delay of one second before creating a new response:
+            setTimeout(() => {
+              client.createResponse();
+            }, 500);
+          }
         } else if (realtimeEvent.source === 'server') {
           logger.log(
             `
@@ -531,7 +541,7 @@ export default function MainPage() {
             `,
             realtimeEvent
           );
-          logger.error(client.conversation.responses);
+          logger.debug(client.conversation.responses);
         } else if (realtimeEvent.source === 'client') {
           logger.log(
             `
@@ -546,7 +556,7 @@ export default function MainPage() {
             `,
             realtimeEvent
           );
-          logger.error(client.conversation.responses);
+          logger.debug(client.conversation.responses);
         } else {
           logger.log(
             `
@@ -571,7 +581,7 @@ export default function MainPage() {
         // Clear active response when done
         if (realtimeEvent.event.type === 'response.done') {
           setActiveResponseId(null);
-          logger.error(
+          logger.debug(
             `Response count: ${client.conversation.responses.length}`
           );
         }
@@ -761,273 +771,19 @@ export default function MainPage() {
         apiKey,
         isConnected,
       });
+      setError(error as Error);
     }
   };
 
   /* ---------------------------------------------------------------- */
   /* ---------------------------------------------------------------- */
-  /* ---------------------------------------------------------------- */
-
-  const ErrorDisplay = ({ error }: { error: Error | null }) => {
-    if (!error) return null;
-
-    return (
-      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded-lg">
-        {error?.message}
-      </div>
-    );
-  };
-
-  /* ---------------------------------------------------------------- */
-  /* ---------------------------------------------------------------- */
-  /* ---------------------------------------------------------------- */
-
-  // Settings Menu Component
-  const SettingsMenu = ({
-    // resetAPIKey,
-    changeTurnEndType,
-    canPushToTalk,
-    fullCleanup,
-  }: {
-    // resetAPIKey: () => void;
-    changeTurnEndType: (value: string) => Promise<void>;
-    canPushToTalk: boolean;
-    fullCleanup: () => Promise<void>;
-  }) => (
-    <div className="absolute top-16 right-4 z-20 bg-white rounded-lg shadow-lg p-4 min-w-[200px]">
-      <h3 className="font-semibold mb-4">Settings</h3>
-      <div className="space-y-4">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={resetAPIKey}
-          className="w-full justify-start"
-        >
-          Reset API Key
-        </Button>
-
-        <div className="space-y-2">
-          <label className="text-sm text-gray-600">Voice Detection Mode:</label>
-          <VadToggle
-            canPushToTalk={canPushToTalk}
-            onChange={value => changeTurnEndType(value)}
-          />
-        </div>
-
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={fullCleanup}
-          className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
-        >
-          Reset Everything
-        </Button>
-      </div>
-    </div>
-  );
-
-  // Enhanced VAD Toggle component
-  const VadToggle = ({
-    canPushToTalk,
-    onChange,
-  }: {
-    canPushToTalk: boolean;
-    onChange: (value: string) => void;
-  }) => (
-    <div className="flex items-center space-x-2 p-2 rounded-lg bg-gray-50">
-      <button
-        className={`px-3 py-1 rounded-md transition-colors ${
-          canPushToTalk ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-600'
-        }`}
-        onClick={() => onChange('none')}
-      >
-        Manual
-      </button>
-      <button
-        className={`px-3 py-1 rounded-md transition-colors ${
-          !canPushToTalk
-            ? 'bg-blue-500 text-white'
-            : 'bg-gray-200 text-gray-600'
-        }`}
-        onClick={() => onChange('server_vad')}
-      >
-        VAD
-      </button>
-    </div>
-  );
-
-  /* ---------------------------------------------------------------- */
-  /* ---------------------------------------------------------------- */
-  /* ---------------------------------------------------------------- */
-
-  const VoiceChatScreen = ({
-    isConnected,
-    isRecording,
-    canPushToTalk,
-    showConversation,
-    hasError,
-    error,
-    items,
-    startRecording,
-    stopRecording,
-    setShowConversation,
-    handleManualReportGeneration,
-    wavRecorderRef,
-    wavStreamPlayerRef,
-  }: {
-    isConnected: boolean;
-    isRecording: boolean;
-    canPushToTalk: boolean;
-    showConversation: boolean;
-    hasError: boolean;
-    error: Error | null;
-    items: ItemType[];
-    startRecording: () => Promise<void>;
-    stopRecording: () => Promise<void>;
-    setShowConversation: (show: boolean) => void;
-    handleManualReportGeneration: () => Promise<void>;
-    wavRecorderRef: React.RefObject<WavRecorder>;
-    wavStreamPlayerRef: React.RefObject<WavStreamPlayer>;
-  }) => (
-    <div className="flex flex-col flex-grow overflow-auto items-center p-6">
-      <StatusIndicator
-        isConnected={isConnected}
-        isRecording={isRecording}
-        hasError={hasError}
-      />
-
-      <ErrorDisplay error={error} />
-
-      <h1 className="text-2xl font-bold mb-12">Clinical Trial Finder</h1>
-
-      <div className="flex-grow flex items-center justify-center w-full">
-        <AudioVisualization
-          isRecording={isRecording}
-          wavRecorderRef={wavRecorderRef}
-          wavStreamPlayerRef={wavStreamPlayerRef}
-        />
-      </div>
-
-      <ConversationView
-        items={items}
-        showConversation={showConversation}
-        onDeleteItem={deleteConversationItem}
-      />
-
-      <div className="w-full max-w-md flex justify-center space-x-8 mt-8">
-        <div className="flex flex-col items-center">
-          <Button
-            variant="outline"
-            size="icon"
-            className="rounded-full w-12 h-12 mb-2"
-            onClick={() => setShowConversation(!showConversation)}
-          >
-            {showConversation ? (
-              <EyeOff className="w-6 h-6" />
-            ) : (
-              <Eye className="w-6 h-6" />
-            )}
-          </Button>
-          <span className="text-sm text-gray-600">
-            {showConversation ? 'Hide Convo' : 'View Convo'}
-          </span>
-        </div>
-
-        <div className="flex flex-col items-center">
-          <Button
-            variant="outline"
-            size="icon"
-            className={`rounded-full w-12 h-12 mb-2 ${
-              isRecording ? 'bg-blue-50 border-blue-200' : ''
-            }`}
-            onMouseDown={startRecording}
-            onMouseUp={stopRecording}
-            // onMouseLeave={stopRecording} // Safety: stop if mouse leaves button
-            disabled={!isConnected || !canPushToTalk}
-          >
-            {isRecording ? (
-              <Mic className="w-6 h-6 text-blue-500" />
-            ) : (
-              <Mic className="w-6 h-6" />
-            )}
-          </Button>
-          <span className="text-sm text-gray-600">
-            {isRecording ? 'Recording...' : 'Push to Talk'}
-          </span>
-        </div>
-
-        <div className="flex flex-col items-center">
-          <Button
-            variant="outline"
-            size="icon"
-            className="rounded-full w-12 h-12 mb-2"
-            // onClick={async () => {
-            //   await handleManualReportGeneration();
-            //   setCurrentScreen('results');
-            // }}
-            // disabled={!trials.length}
-            onClick={handleManualReportGeneration}
-            disabled={!isConnected || isRecording}
-          >
-            <PhoneOff className="w-6 h-6" />
-          </Button>
-          <span className="text-sm text-gray-600">End Chat</span>
-        </div>
-      </div>
-    </div>
-  );
-
-  /* ---------------------------------------------------------------- */
-  /* ---------------------------------------------------------------- */
-  /* ---------------------------------------------------------------- */
-
-  /* ---------------------------------------------------------------- */
-  /* ==================== log element dimensions ==================== */
-  /* ---------------------------------------------------------------- */
-  useEffect(() => {
-    const mainPageElement = document.getElementById('main-page-root');
-    if (mainPageElement) {
-      logger.debug(
-        'DEBUG: MainPage root clientHeight:',
-        mainPageElement.clientHeight
-      );
-    }
-  }, []);
-  /* ---------------------------------------------------------------- */
-
-  /* ---------------------------------------------------------------- */
-  /* ---------------------------------------------------------------- */
-  /* ---------------------------------------------------------------- */
-  /* **************************************************************** */
-  /*                            MAIN RENDER                           */
-  /* **************************************************************** */
-  /* ---------------------------------------------------------------- */
-  /* ---------------------------------------------------------------- */
-  /* ---------------------------------------------------------------- */
-
-  /* ===================== Guard the main render ==================== */
-  const LoadingState = ({ error }: { error: Error | null }) => (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="text-center">
-        {isLoading ? (
-          <div>Loading...</div>
-        ) : (
-          <div className="text-red-600">
-            {error?.message || 'Failed to load'}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
-  // Then in render guard:
-  if (!isInitialized || isLoading) {
-    return <LoadingState error={error} />;
-  }
-
   /* ---------------------------------------------------------------- */
 
   // Main render function with proper state handling
+  if (!isInitialized || isLoading) {
+    return <LoadingState error={error} isLoading={isLoading} />;
+  }
+
   return (
     <div
       id="main-page-root"
@@ -1050,9 +806,8 @@ export default function MainPage() {
       {/* Settings Menu - Only show when NOT on results screen */}
       {showSettings && currentScreen !== 'results' && (
         <SettingsMenu
-          // resetAPIKey={resetAPIKey}
-          changeTurnEndType={changeTurnEndType}
           canPushToTalk={canPushToTalk}
+          changeTurnEndType={changeTurnEndType}
           fullCleanup={fullCleanup}
         />
       )}
@@ -1080,21 +835,17 @@ export default function MainPage() {
           isRecording={isRecording}
           canPushToTalk={canPushToTalk}
           showConversation={showConversation}
-          hasError={!!error}
-          error={error}
+          showSettings={showSettings}
           items={items}
-          startRecording={startRecording}
-          stopRecording={stopRecording}
-          setShowConversation={setShowConversation}
-          handleManualReportGeneration={async () => {
-            try {
-              await handleManualReportGeneration();
-            } catch (err) {
-              setError(err as Error);
-            }
-          }}
+          error={error}
           wavRecorderRef={wavRecorderRef}
           wavStreamPlayerRef={wavStreamPlayerRef}
+          setShowConversation={setShowConversation}
+          setShowSettings={setShowSettings}
+          startRecording={startRecording}
+          stopRecording={stopRecording}
+          handleManualReportGeneration={handleManualReportGeneration}
+          deleteConversationItem={deleteConversationItem}
         />
       )}
 
@@ -1110,14 +861,14 @@ export default function MainPage() {
               setCurrentScreen('voiceChat');
             } catch (error) {
               logger.error('Error starting new search:', error);
-              // Could add error handling UI here
+              setError(error as Error);
             }
           }}
         />
       )}
 
-      {/* Error Boundary */}
-      <ErrorDisplay error={error} />
+      {/* Global Error Display - shows app-level errors */}
+      {currentScreen !== 'voiceChat' && <ErrorDisplay error={error} />}
     </div>
   );
 }

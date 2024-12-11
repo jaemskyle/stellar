@@ -124,20 +124,24 @@ export function useAudioManager({
       const wavRecorder = wavRecorderRef.current;
       if (!wavRecorder) return;
 
-      if (value === 'none' && wavRecorder.getStatus() === 'recording') {
-        await wavRecorder.pause();
+      try {
+        if (value === 'none' && wavRecorder.getStatus() === 'recording') {
+          await wavRecorder.pause();
+        }
+
+        client.updateSession({
+          turn_detection: value === 'none' ? null : { type: 'server_vad' },
+        });
+
+        if (value === 'server_vad' && client.isConnected()) {
+          await wavRecorder.record(data => client.appendInputAudio(data.mono));
+        }
+
+        setCanPushToTalk(value === 'none');
+      } catch (error) {
+        logger.error('Error changing turn end type:', error);
+        throw error; // Let the error propagate to be handled by the UI
       }
-
-      client.updateSession({
-        turn_detection: value === 'none' ? null : { type: 'server_vad' },
-      });
-
-      if (value === 'server_vad' && client.isConnected()) {
-        await wavRecorder.record(data => client.appendInputAudio(data.mono));
-      }
-
-      // Note: This was commented out in MainPage.tsx with a question about whether it's needed
-      // setCanPushToTalk(value === 'none');
     },
     [client]
   );
