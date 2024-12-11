@@ -2,8 +2,8 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import type { ItemType } from '@openai/realtime-api-beta/dist/lib/client.js';
-import { useOpenAIClient } from '@/hooks/useOpenAIClient';
-import { useAudioProcessor } from '@/hooks/useAudioProcessor';
+import { useOpenAIClient } from '@/hooks/useOpenAIClientTest';
+import { useAudioProcessor } from '@/hooks/useAudioProcessorTest';
 import { formatTime } from '@/utils/timeUtils';
 import { ConversationDisplay } from './console/ConversationDisplay';
 import { EventLog } from './console/EventLog';
@@ -14,8 +14,8 @@ import { ControlPanel } from './console/ControlPanel';
 import { SidePanel } from './console/SidePanel';
 import ReportModal from './ReportModal'; // Fix import
 import type { ConsoleProps } from '@/types/console';
-import { useEventHandling } from '@/hooks/useEventHandling';
-import { useConnectionManager } from '@/hooks/useConnectionManager';
+import { useEventHandling } from '@/hooks/useEventHandlingTest';
+import { useConnectionManager } from '@/hooks/useConnectionManagerTest';
 import './ConsolePage.scss';
 
 const LOCAL_RELAY_SERVER_URL =
