@@ -222,6 +222,7 @@ export default function MainPage() {
         setFinalReport(report);
         // setIsReportModalOpen(true); // Open modal when assistant generates report
         setCurrentScreen('results');
+        await disconnectConversation();
 
         return {
           status: 'success',
@@ -316,7 +317,7 @@ export default function MainPage() {
       // logger.debug('DEBUG: Sent text message:', userMessageContent);
 
     // logger.log('Forcing model response generation');
-    // client.createResponse();
+    client.createResponse();
     logger.log('Model response creation complete');
 
     if (client.getTurnDetectionType() === 'server_vad') {
@@ -374,6 +375,7 @@ export default function MainPage() {
 
     setIsRecording(true);
     const client = clientRef.current;
+  
     if (!client) return;
     const wavRecorder = wavRecorderRef.current;
     const wavStreamPlayer = wavStreamPlayerRef.current;
@@ -448,6 +450,9 @@ export default function MainPage() {
     try {
       logger.debug('Generating report manually');
 
+      // First disconnect conversation
+      await disconnectConversation();
+
       // Generate report first
       const report = reportHandler.generateReport(
         memoryKv,
@@ -456,8 +461,6 @@ export default function MainPage() {
       );
       setFinalReport(report);
       logger.log('Report set:', report);
-
-
 
       // setIsReportModalOpen(true); // Open modal after report
       // generation
@@ -637,6 +640,7 @@ export default function MainPage() {
             realtimeEvent
           );
           logger.error(client.conversation.responses);
+          client.createResponse();
         } else if (realtimeEvent.source === 'server') {
           logger.log(
             `
@@ -1549,7 +1553,7 @@ export default function MainPage() {
           fullCleanup={fullCleanup}
         />
       )}
-      
+
 
       {/* Landing Screen */}
       {currentScreen === 'landing' && (
