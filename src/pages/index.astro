@@ -6,7 +6,7 @@ import Card from '../components/Card.astro';
 import VoiceChat from '../components/VoiceChat';
 import { ConsolePageOG } from '../components/ConsolePageOG';
 import MainPage from '../components/MainPage';
-import { ClientApp } from '../../misc/ClientApp';
+// import { ClientApp } from '../../misc/ClientApp';
 import SiteLayout from '../layouts/SiteLayout.astro';
 import {
   SignedIn,
@@ -31,8 +31,8 @@ const title = debugMode
   <p>Sign in to try Clerk out!</p>
 </SiteLayout>
  -->
-<Layout title="Yara - Healthcare Assistant">
-  <div class="min-h-screen flex flex-col">
+<Layout title="James - Your Healthcare Assistant">
+  <div class="_min-h-screen flex flex-col">
     <!-- Added wrapper div -->
     <main class="flex-1 flex flex-col">
       <!-- Changed to flex-1 -->
@@ -42,7 +42,9 @@ const title = debugMode
           <SignInButton mode="modal" />
         </SignedOut>
         <SignedIn>
-          <UserButton />
+          <div class="flex justify-end absolute top-0 left-0 right-0 p-8 z-10">
+            <UserButton />
+          </div>
           <!-- <TestButton client:load>Test shadcn/ui Button</TestButton> -->
           <MainPage client:load />
         </SignedIn>
