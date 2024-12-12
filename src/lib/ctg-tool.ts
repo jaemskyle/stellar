@@ -26,13 +26,33 @@ export interface EligibilityModule {
   eligibilityCriteria: string;
   /** Indicates if healthy volunteers are accepted. */
   healthyVolunteers: boolean;
-  /** The gender eligible for the study. */
+  /** The sex eligible for the study. */
   sex: string;
+  /** */
+  genderBased: boolean;
+  /** */
+  genderDescription: string;
   /** The minimum age eligible for the study. */
   minimumAge: string;
+  /** The maximum age eligible for the study. */
+  maximumAge: string;
   /** Standardized age categories for the study. */
   stdAges: string[];
+  /** */
+  studyPopulation: string;
+  /** */
+  samplingMethod: string;
 }
+// eligibilityCriteria?: string;
+// healthyVolunteers?: boolean;
+// sex?: string;
+// genderBased: boolean;
+// genderDescription?: string;
+// minimumAge?: string;
+// maximumAge?: string;
+// stdAges?: string[];
+// studyPopulation?: string;
+// samplingMethod?: string;
 
 /**
  * Represents the protocol sections of a clinical trial.
@@ -73,69 +93,16 @@ interface ProtocolSection {
   eligibilityModule?: {
     eligibilityCriteria?: string;
     healthyVolunteers?: boolean;
-    gender?: string;
+    sex?: string;
+    genderBased: boolean;
+    genderDescription?: string;
     minimumAge?: string;
+    maximumAge?: string;
     stdAges?: string[];
+    studyPopulation?: string;
+    samplingMethod?: string;
   };
 }
-
-/**
- * Definition of the CTG_TOOL, which retrieves clinical trials from ClinicalTrials.gov
- * based on search criteria.
- */
-export const CTG_TOOL_SHORT_DEFINITION = {
-  name: 'get_trials',
-  description:
-    'Retrieves clinical trials from ClinicalTrials.gov based on search criteria.',
-  parameters: {
-    type: 'object',
-    properties: {
-      query: {
-        type: 'object',
-        properties: {
-          condition: {
-            type: 'string',
-            description: 'Medical condition or disease to search for',
-          },
-          intervention: {
-            type: 'string',
-            description: 'Treatment, drug, or intervention to search for',
-          },
-          outcome: {
-            type: 'string',
-            description: 'Outcome or endpoint to search for',
-          },
-          term: {
-            type: 'string',
-            description: 'General search term',
-          },
-        },
-      },
-      filter: {
-        type: 'object',
-        properties: {
-          overallStatus: {
-            type: 'string',
-            description: 'Trial status (e.g., "RECRUITING,COMPLETED")',
-          },
-          phase: {
-            type: 'string',
-            description: 'Trial phase (e.g., "Phase3")',
-          },
-        },
-      },
-      pageSize: {
-        type: 'number',
-        description: 'Number of results to return',
-      },
-      sort: {
-        type: 'string',
-        description: 'Sort order (e.g., "LastUpdatePostDate:desc")',
-      },
-    },
-    required: ['pageSize'],
-  },
-};
 
 /**
  * Fetches clinical trials from ClinicalTrials.gov based on the provided parameters.
@@ -165,11 +132,11 @@ interface ClinicalTrialParams {
   'filter.ids'?: string[];
   'filter.advanced'?: string;
   'filter.synonyms'?: string[];
-  'postFilter.overallStatus'?: string[];
-  'postFilter.geo'?: string;
-  'postFilter.ids'?: string[];
-  'postFilter.advanced'?: string;
-  'postFilter.synonyms'?: string[];
+  // 'postFilter.overallStatus'?: string[];
+  // 'postFilter.geo'?: string;
+  // 'postFilter.ids'?: string[];
+  // 'postFilter.advanced'?: string;
+  // 'postFilter.synonyms'?: string[];
   aggFilters?: string;
   geoDecay?: string;
   fields?: string[];
@@ -267,9 +234,14 @@ export async function getClinicalTrials(
         eligibilityModule: {
           eligibilityCriteria: eligibility.eligibilityCriteria || '',
           healthyVolunteers: eligibility.healthyVolunteers || false,
-          sex: eligibility.gender || '',
+          sex: eligibility.sex || '',
+          genderBased: eligibility.genderBased || false,
+          genderDescription: eligibility.genderDescription || '',
           minimumAge: eligibility.minimumAge || '',
+          maximumAge: eligibility.maximumAge || '',
           stdAges: eligibility.stdAges || [],
+          studyPopulation: eligibility.studyPopulation || '',
+          samplingMethod: eligibility.samplingMethod || '',
         },
       };
     });
