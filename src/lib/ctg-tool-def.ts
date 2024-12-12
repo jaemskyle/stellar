@@ -24,11 +24,73 @@ If neither queries nor filters are set, all studies will be returned.
 If any query parameter contains only NCT IDs (comma- and/or space-separated), filters are ignored.
 
 \`query.*\` parameters are in Essie expression syntax. These parameters affect ranking of studies if sorted by relevance.
-See \`sort\` parameter for details.`,
-  strict: true,
+See \`sort\` parameter for details.
+
+Note: When trying JSON format in your browser, do not set too large \`pageSize\` parameter, if \`fields\` is
+unlimited. That may return too much data for the browser to parse and render.
+
+Responses:
+
+1. Success (200 OK):
+Returns paginated clinical trials data in the following format:
+  {
+    totalCount?: number,  // Total matching studies (only if countTotal=true)
+    studies: Array<Study>,  // Array of study objects with requested fields
+    nextPageToken?: string  // Token for next page, if more results exist
+  }
+
+Example successful response:
+  {
+    "totalCount": 438897,
+    "studies": [
+      {
+        "protocolSection": {
+          "identificationModule": {
+            "nctId": "NCT03540771",
+            "briefTitle": "Introducing Palliative Care (PC) Within the Treatment of End Stage Liver Disease (ESLD)"
+          },
+          "statusModule": {
+            "overallStatus": "RECRUITING"
+          }
+        },
+        "hasResults": false
+      },
+      {
+        "protocolSection": {
+          "identificationModule": {
+            "nctId": "NCT03630471",
+            "briefTitle": "Effectiveness of a Problem-solving Intervention for Common Adolescent Mental Health Problems in India"
+          },
+          "statusModule": {
+            "overallStatus": "COMPLETED"
+          }
+        },
+        "hasResults": false
+      },
+      {
+        "protocolSection": {
+          "identificationModule": {
+            "nctId": "NCT00587795",
+            "briefTitle": "Orthopedic Study of the Aircast StabilAir Wrist Fracture Brace"
+          },
+          "statusModule": {
+            "overallStatus": "TERMINATED"
+          }
+        },
+        "hasResults": true
+      }
+    ],
+    "nextPageToken": "abracadabra"
+  }
+
+2. Error (400 Bad Request):
+Returns a text message describing the error.
+Example error response: "Invalid parameter value"`,
   parameters: {
     type: 'object',
     required: ['pageSize'],
+    additionalProperties: false,
+    strict: true,
     properties: {
       format: {
         type: 'string',
@@ -52,11 +114,18 @@ Applicable only to \`json\` format.`,
         type: 'string',
         description:
           '"Conditions or disease" query in Essie expression syntax. See "ConditionSearch Area" on Search Areas for more details.',
+        examples: {
+          example1: { value: 'lung cancer' },
+          example2: { value: '(head OR neck) AND pain' },
+        },
       },
       'query.term': {
         type: 'string',
         description:
           '"Other terms" query in Essie expression syntax. See "BasicSearch Area" on Search Areas for more details.',
+        examples: {
+          example1: { value: 'AREA[LastUpdatePostDate]RANGE[2023-01-15,MAX]' },
+        },
       },
       'query.locn': {
         type: 'string',
@@ -119,7 +188,17 @@ Applicable only to \`json\` format.`,
             'UNKNOWN',
           ],
         },
+        style: 'pipeDelimited',
+        explode: false,
         description: 'Filter by comma- or pipe-separated list of statuses',
+        examples: {
+          example1: {
+            value: ['NOT_YET_RECRUITING', 'RECRUITING'],
+          },
+          example2: {
+            value: ['COMPLETED'],
+          },
+        },
       },
       'filter.geo': {
         type: 'string',
@@ -127,6 +206,11 @@ Applicable only to \`json\` format.`,
           '^distance\\(-?\\d+(\\.\\d+)?,-?\\d+(\\.\\d+)?,\\d+(\\.\\d+)?(km|mi)?\\)$',
         description: `Filter by geo-function. Currently only distance function is supported.
 Format: \`distance(latitude,longitude,distance)\``,
+        examples: {
+          example1: {
+            value: 'distance(39.0035707,-77.1013313,50mi)',
+          },
+        },
       },
       'filter.ids': {
         type: 'array',
@@ -134,25 +218,56 @@ Format: \`distance(latitude,longitude,distance)\``,
           type: 'string',
           pattern: '^[Nn][Cc][Tt]0*[1-9]\\d{0,7}$',
         },
+        style: 'pipeDelimited',
+        explode: false,
         description: `Filter by comma- or pipe-separated list of NCT IDs (a.k.a. ClinicalTrials.gov identifiers).
 The provided IDs will be searched in NCTId and NCTIdAlias fields.`,
+        examples: {
+          example1: {
+            value: ['NCT04852770', 'NCT01728545', 'NCT02109302'],
+          },
+        },
       },
       'filter.advanced': {
         type: 'string',
         description: 'Filter by query in Essie expression syntax',
+        examples: {
+          example1: {
+            value: 'AREA[StartDate]2022',
+          },
+          example2: {
+            value:
+              'AREA[MinimumAge]RANGE[MIN, 16 years] AND AREA[MaximumAge]RANGE[16 years, MAX]',
+          },
+        },
       },
       'filter.synonyms': {
         type: 'array',
         items: {
           type: 'string',
         },
+        style: 'pipeDelimited',
+        explode: false,
         description:
           'Filter by comma- or pipe-separated list of `area`:`synonym_id` pairs',
+        examples: {
+          example1: {
+            value: ['ConditionSearch:1651367', 'BasicSearch:2013558'],
+          },
+        },
       },
       aggFilters: {
         type: 'string',
         description:
           'Apply aggregation filters, aggregation counts will not be provided. The value is comma- or pipe-separated list of pairs `filter_id`:`space-separated list of option keys` for the checked options.',
+        examples: {
+          example1: {
+            value: 'results:with,status:com',
+          },
+          example2: {
+            value: 'status:not rec,sex:f,healthy:y',
+          },
+        },
       },
       geoDecay: {
         type: 'string',
@@ -161,6 +276,14 @@ The provided IDs will be searched in NCTId and NCTIdAlias fields.`,
         default: 'func:exp,scale:300mi,offset:0mi,decay:0.5',
         description: `Set proximity factor by distance from \`filter.geo\` location to the closest LocationGeoPoint of a study.
 Ignored, if \`filter.geo\` parameter is not set or response contains more than 10,000 studies.`,
+        examples: {
+          example1: {
+            value: 'func:linear,scale:100km,offset:10km,decay:0.1',
+          },
+          example2: {
+            value: 'func:gauss,scale:500mi,offset:0mi,decay:0.3',
+          },
+        },
       },
       fields: {
         type: 'array',
@@ -168,6 +291,8 @@ Ignored, if \`filter.geo\` parameter is not set or response contains more than 1
           type: 'string',
           pattern: '^([a-zA-Z][a-zA-Z0-9\\-. ]*)|(@query)$',
         },
+        style: 'pipeDelimited',
+        explode: false,
         minItems: 1,
         description: `If specified, must be non-empty comma- or pipe-separated list of fields to return. If unspecified, all fields will be returned.
 Order of the fields does not matter.
@@ -178,6 +303,14 @@ For \`json\` format, every list item is either area name, piece name, field name
 If a piece or a field is a branch node, all descendant fields will be included.
 All area names are available on Search Areas, the piece and field names — on Data Structure and also can be retrieved at \`/studies/metadata\` endpoint.
 There is a special name, \`@query\`, which expands to all fields queried by search.`,
+        examples: {
+          example1: {
+            value: ['NCTId', 'BriefTitle', 'OverallStatus', 'HasResults'],
+          },
+          example2: {
+            value: ['ProtocolSection'],
+          },
+        },
       },
       sort: {
         type: 'array',
@@ -185,6 +318,8 @@ There is a special name, \`@query\`, which expands to all fields queried by sear
           type: 'string',
           pattern: '^(([a-zA-Z][a-zA-Z0-9\\-. ]*)|(@relevance))(:(asc|desc))?$',
         },
+        style: 'pipeDelimited',
+        explode: false,
         maxItems: 2,
         default: [],
         description: `Comma- or pipe-separated list of sorting options of the studies. The returning studies are not sorted by default for a performance reason.
@@ -197,6 +332,17 @@ Studies missing sort field are always last. Default sort direction:
 * Date field - \`desc\`
 * Numeric field - \`asc\`
 * \`@relevance\` - \`desc\``,
+        examples: {
+          example1: {
+            value: ['@relevance'],
+          },
+          example2: {
+            value: ['LastUpdatePostDate'],
+          },
+          example3: {
+            value: ['EnrollmentCount:desc', 'NumArmGroups'],
+          },
+        },
       },
       countTotal: {
         type: 'boolean',
@@ -208,9 +354,14 @@ The parameter is ignored for the subsequent pages.`,
       pageSize: {
         type: 'integer',
         minimum: 0,
+        format: 'int32',
         default: 10,
         description: `Page size is maximum number of studies to return in response. It does not have to be the same for every page.
 If not specified or set to 0, the default value will be used. It will be coerced down to 1,000, if greater than that.`,
+        examples: {
+          example1: { value: 2 },
+          example2: { value: 100 },
+        },
       },
       pageToken: {
         type: 'string',
@@ -219,6 +370,5 @@ For CSV, it can be found in \`x-next-page-token\` response header.
 Do not specify it for first page.`,
       },
     },
-    'additionalProperties': false,
   },
 };
