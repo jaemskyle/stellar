@@ -82,7 +82,7 @@ export function VoiceChatScreen({
       <ErrorDisplay error={error} />
 
       {/* Settings Button */}
-      <div>
+      {/* <div>
         <Button
           variant="ghost"
           size="icon"
@@ -91,7 +91,7 @@ export function VoiceChatScreen({
         >
           <Settings className="w-5 h-5" />
         </Button>
-      </div>
+      </div> */}
 
       <h1 className="text-2xl font-bold mb-12">Clinical Trial Finder</h1>
 

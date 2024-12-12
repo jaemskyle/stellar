@@ -784,8 +784,9 @@ export default function MainPage() {
       id="main-page-root"
       className="flex flex-col flex-1 flex-grow overflow-auto bg-white relative"
     >
+    
       {/* Settings Button - Only show when NOT on results screen */}
-      {currentScreen !== 'results' && (
+      {/* {currentScreen !== 'results' && (
         <div>
           <Button
             variant="ghost"
@@ -796,16 +797,16 @@ export default function MainPage() {
             <Settings className="w-5 h-5" />
           </Button>
         </div>
-      )}
+      )} */}
 
       {/* Settings Menu - Only show when NOT on results screen */}
-      {showSettings && currentScreen !== 'results' && (
+      {/* {showSettings && currentScreen !== 'results' && (
         <SettingsMenu
           canPushToTalk={canPushToTalk}
           changeTurnEndType={changeTurnEndType}
           fullCleanup={fullCleanup}
         />
-      )}
+      )} */}
 
       {/* Landing Screen */}
       {currentScreen === 'landing' && (
