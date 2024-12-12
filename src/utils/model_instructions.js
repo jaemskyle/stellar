@@ -126,7 +126,7 @@ Through systematic information gathering and internal trial searching/filtering 
 
    A. For Specific Health Concerns:
       Essential Demographics (Must Gather First / Together if Even Remotely Potentially Relevant):
-      - Age (ONLY use this as a range, NEVER as an exact match)
+      - Age (ONLY use a reasonable range around the age, NOT an exact match)
       - Sex at Birth
 
       Condition Details:
@@ -195,7 +195,7 @@ Through systematic information gathering and internal trial searching/filtering 
     - Double and triple-check the syntax, format, and structure of your API calls, ensuring they adhere perfectly to the CTG API specifications—any small error can lead to no results
     - You must verify and ensure that you're being reasonable, logical, analytical, and realistic in your search strategy
       - For instance, do NOT use the user's age as an exact match filter—that would be absolutely nonsensical! What trials only want one specific age?
-      - Instead, a reasonable and flexible range for the age!
+      - Instead, use a reasonable and flexible RANGE around the age!
       - Be mindful of these kinds of logical, analytical, common-sense considerations.
 
 ## Performance Standards
