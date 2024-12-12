@@ -159,20 +159,42 @@ export default function MainPage() {
         },
       },
       async ({ key, value }: { [key: string]: any }) => {
+        logger.info(`
+          @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+          @ [TOOL CALL] Calling 'set_memory' function:
+          @
+          @ Key: ${key}
+          @ Value: ${value}
+          @
+        `);
         setMemoryKv(memoryKv => {
           const newKv = { ...memoryKv };
           newKv[key] = value;
           return newKv;
         });
+        logger.info(`
+          @
+          @ [TOOL CALL] 'set_memory' function call complete.
+          @ Memory updated with key "${key}"
+          @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+        `);
         return { ok: true };
       }
     );
 
     client.addTool(CTG_TOOL_DEFINITION, async (params: any) => {
       try {
+        logger.info(`
+          @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+          @ [TOOL CALL] Calling 'get_trials' function:
+          @
+          @ Parameters:
+          @ ${JSON.stringify(params)}
+        `);
         setIsLoadingTrials(true);
         setTrials([]);
 
+        logger.debug('[DEBUG] Fetching clinical trials with params:', params);
         const trials = await getClinicalTrials(params);
 
         // Update latest trials in report handler
@@ -181,6 +203,12 @@ export default function MainPage() {
         setTrials(trials);
         setIsLoadingTrials(false);
 
+        logger.info(`
+          @
+          @ [TOOL CALL] 'get_trials' function call complete.
+          @ Found ${trials.length} trials matching criteria
+          @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+        `);
         return {
           status: 'success',
           resultCount: trials.length,
@@ -212,11 +240,26 @@ export default function MainPage() {
           params.conversationComplete,
           params.finalNotes
         );
-
+        logger.info(`
+          @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+          @ [TOOL CALL] Calling 'generate_report' function:
+          @
+          @ Conversation Complete: ${params.conversationComplete}
+          @ Final Notes: ${params.finalNotes}
+          @
+        `);
         setFinalReport(report);
         // setIsReportModalOpen(true); // Open modal when assistant generates report
         setCurrentScreen('results');
 
+        await disconnectConversation();
+
+        logger.info(`
+          @
+          @ [TOOL CALL] 'generate_report' function call complete.
+          @ Report generated successfully.
+          @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+        `);
         return {
           status: 'success',
           message: 'Report generated successfully.',
@@ -276,9 +319,9 @@ export default function MainPage() {
     await initializeAudio();
 
     // Connect to realtime API
-    logger.debug('DEBUG: await client.connect() - pre-try');
+    logger.debug('[DEBUG] await client.connect() - pre-try');
     await client.connect();
-    logger.debug('DEBUG: await client.connect() - post-try');
+    logger.debug('[DEBUG] await client.connect() - post-try');
 
     const userMessageContent: InputTextContentType[] = [
       {
@@ -287,7 +330,7 @@ export default function MainPage() {
       },
     ];
     client.sendUserMessageContent(userMessageContent);
-    logger.debug('DEBUG: Sent text message:', userMessageContent);
+    logger.debug('[DEBUG] Sent text message:', userMessageContent);
 
     // console.log('Forcing model response generation');
     // client.createResponse();
@@ -299,8 +342,8 @@ export default function MainPage() {
 
     logger.log('====== CONVERSATION CONNECTION COMPLETE ======');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientRef, initializeAudio, wavRecorderRef]);
-  // }, [clientRef, wavRecorderRef, wavStreamPlayerRef]);
+  }, [clientRef]);
+  // }, [clientRef, initializeAudio, wavRecorderRef, wavStreamPlayerRef]);
 
   /**
    * Disconnect and reset conversation state
@@ -308,7 +351,7 @@ export default function MainPage() {
    */
   const disconnectConversation = useCallback(async () => {
     // if (!clientRef.current) return;
-
+    logger.log('====== DISCONNECTING CONVERSATION ======');
     setIsConnected(false);
     setRealtimeEvents([]);
     setItems([]);
@@ -318,11 +361,14 @@ export default function MainPage() {
     // setFinalReport(null);
     // reportHandler.clear();
 
+    logger.debug('\n[DEBUG] Disconnecting CLIENT');
     const client = clientRef.current;
     client?.disconnect(); // Safely disconnect if client exists
-
+    logger.debug('[DEBUG] Client disconnected\n------');
+    logger.debug('[DEBUG] Resetting AUDIO STATE');
     await resetAudioState();
-  }, [clientRef, resetAudioState]);
+    logger.debug('[DEBUG] Audio state reset\n------');
+  }, [clientRef]);
 
   /**
    * Full cleanup including report data
@@ -332,7 +378,7 @@ export default function MainPage() {
     await disconnectConversation();
     setFinalReport(null);
     reportHandler.clear();
-  }, [disconnectConversation]);
+  }, []);
 
   /**
    * Report Management
@@ -376,7 +422,7 @@ export default function MainPage() {
       logger.error('Error during report generation:', error);
       // Optionally show error to user
     }
-  }, [memoryKv, disconnectConversation]);
+  }, []);
 
   /**
    * Delete a conversation item by its ID.
@@ -500,44 +546,54 @@ export default function MainPage() {
     const eventHandlers = {
       'realtime.event': (realtimeEvent: RealtimeEvent) => {
         if (realtimeEvent.event.type === 'error') {
-          logger.error(
-            `
-            ! ===============================
-            ! ERROR IN REALTIME EVENT
-            ! ===============================
-            ! Event: ${JSON.stringify(realtimeEvent.event)}
-            ! Details:
-            `,
-            realtimeEvent
-          );
-          logger.debug(client.conversation.responses);
           // Check if the error has a message saying exactly:
           // "Conversation already has an active response", in which
           // case, we should run `client.createResponse()` to force a
           // new response. This is a workaround for a bug in the
           // realtime API.
-          // To access the message, we should use
-          // `realtimeEvent.event.error.message`.
           if (
             realtimeEvent.event.error.message ===
             'Conversation already has an active response'
           ) {
-            // Add a delay of one second before creating a new response:
+            logger.error(
+              `
+              ! ********************************************************
+              ! [ERROR] "CONVERSATION ALREADY HAS AN ACTIVE RESPONSE"
+              ! ********************************************************
+              ! Event Type: ${realtimeEvent.event.error.type}
+              ! Details:
+              `,
+              realtimeEvent
+            );
+            logger.warn(
+              'Forcing a new response due to known bug in realtime API'
+            );
+            // Add a delay of half a second before creating a new response:
             setTimeout(() => {
               client.createResponse();
             }, 500);
+          } else {
+            logger.error(
+              `
+            ! ==========================================================
+            ! [ERROR] UNKNOWN REALTIME EVENT ERROR
+            ! ==========================================================
+            ! Event: ${JSON.stringify(realtimeEvent.event)}
+            ! Details:
+            `,
+              realtimeEvent
+            );
           }
+          logger.debug(client.conversation.responses);
         } else if (realtimeEvent.source === 'server') {
           logger.log(
             `
             ╔════════════════════════════════════════════════════════════════════════════════
-            ║ REALTIME EVENT - RECEIVED FROM ${realtimeEvent.source}
-            ║ Type: ${realtimeEvent.event.type}
-            ║ Time: ${realtimeEvent.time}
+            ║ [SERVER] SENT "${realtimeEvent.event.type}" event to CLIENT
+            ╚════════════════════════════════════════════════════════════════════════════════
             ║ Event ID: ${realtimeEvent.event.event_id}
             ║ Item ID: ${realtimeEvent.event.item?.id}
             ║ Event Details Below:
-            ╚════════════════════════════════════════════════════════════════════════════════
             `,
             realtimeEvent
           );
@@ -546,13 +602,11 @@ export default function MainPage() {
           logger.log(
             `
             +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            + REALTIME EVENT - SENT BY ${realtimeEvent.source}
-            + Type: ${realtimeEvent.event.type}
-            + Time: ${realtimeEvent.time}
+            + [CLIENT] SENT "${realtimeEvent.event.type}" event to SERVER
+            +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             + Event ID: ${realtimeEvent.event.event_id}
             + Item ID: ${realtimeEvent.event.item?.id}
             + Event Details Below:
-            +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             `,
             realtimeEvent
           );
@@ -582,7 +636,7 @@ export default function MainPage() {
         if (realtimeEvent.event.type === 'response.done') {
           setActiveResponseId(null);
           logger.debug(
-            `Response count: ${client.conversation.responses.length}`
+            `[DEBUG] Response count: ${client.conversation.responses.length}`
           );
         }
 
@@ -641,9 +695,8 @@ export default function MainPage() {
 
       'conversation.updated': async ({ item, delta }: any) => {
         logger.log(
-          `CONVERSATION UPDATE --- Item ID: ${item.id}; Status: ${item.status}; ¶¶¶¶¶ HAS AUDIO DELTA: ${!!delta?.audio} ¶¶¶¶¶`
+          `[CONVERSATION] UPDATE --- Item ID: ${item.id}; Status: ${item.status}; ¶¶¶¶¶ HAS AUDIO DELTA: ${!!delta?.audio} ¶¶¶¶¶`
         );
-
         if (delta?.audio) {
           logger.debug(
             '[AUDIO] AUDIO OUT DETECTED --- Processing new audio delta'
@@ -693,13 +746,15 @@ export default function MainPage() {
       Object.entries(eventHandlers).forEach(([event, handler]) => {
         client.off(event, handler);
       });
-
       // Cleanup audio resources
       if (wavStreamPlayer) {
         wavStreamPlayer.interrupt();
       }
+      // cleanup; resets to defaults
+      client.reset();
     };
-  }, [isInitialized, clientRef, wavRecorderRef, wavStreamPlayerRef]);
+  }, [isInitialized, clientRef]);
+  // }, [isInitialized, clientRef, wavRecorderRef, wavStreamPlayerRef]);
 
   /**
    * Tool and Core Setup
@@ -755,12 +810,12 @@ export default function MainPage() {
   const handleStart = async () => {
     logger.log('=== Handling START - pre-try ===');
     try {
-      logger.debug('DEBUG: clientRef current state:', clientRef.current); // Add this
-      logger.debug('DEBUG: apiKey state:', apiKey); // Add this
+      logger.debug('[DEBUG] clientRef current state:', clientRef.current); // Add this
+      logger.debug('[DEBUG] apiKey state:', apiKey); // Add this
       logger.log('--- Connecting conversation ---');
       await connectConversation();
       logger.log('--- Connection successful ---');
-      logger.debug('DEBUG: Setting current screen to voiceChat');
+      logger.debug('[DEBUG] Setting current screen to voiceChat');
       setCurrentScreen('voiceChat');
       logger.log('=== Handling START done - post-try ===');
     } catch (error) {
@@ -819,7 +874,7 @@ export default function MainPage() {
             try {
               // await connectConversation();
               // setCurrentScreen('voiceChat');
-              logger.debug('DEBUG: START Button clicked - immediate feedback');
+              logger.debug('[DEBUG] START Button clicked - immediate feedback');
               handleStart();
             } catch (err) {
               setError(err as Error);
