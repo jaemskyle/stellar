@@ -67,8 +67,9 @@ export function VoiceChatScreen({
   return (
     <div
       id="main-page-root"
-      className="relative flex flex-col items-center justify-between min-h-screen bg-background p-8"
+      className="flex flex-col items-center justify-between _min-h-screen bg-background p-8 absolute top-0 left-0 right-0 bottom-0 overflow-auto"
     >
+      
       {/* Status Indicator */}
       <div className="absolute top-4 left-4">
         <StatusIndicator

@@ -782,8 +782,8 @@ export default function MainPage() {
   return (
     <div
       id="main-page-root"
-      className="flex flex-col flex-1 flex-grow overflow-auto bg-white relative"
-    >
+      className="flex flex-col flex-1 flex-grow overflow-auto bg-white absolute top-0 left-0 right-0 bottom-0 overflow-auto"
+    >      
     
       {/* Settings Button - Only show when NOT on results screen */}
       {/* {currentScreen !== 'results' && (
