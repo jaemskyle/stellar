@@ -14,7 +14,7 @@
  */
 export const CTG_TOOL_DEFINITION = {
   name: 'get_trials',
-  description: `Returns data of studies matching query and filter parameters from ClinicalTrials.gov API.
+  description: `Returns data of studies matching query and filter parameters from ClinicalTrials.gov.
 The studies are returned page by page. If response contains \`nextPageToken\`, use its value in \`pageToken\` to get next page.
 The last page will not contain \`nextPageToken\`. A page may have empty \`studies\` array.
 Request for each subsequent page **must** have the same parameters as for the first page, except
@@ -26,66 +26,11 @@ If any query parameter contains only NCT IDs (comma- and/or space-separated), fi
 \`query.*\` parameters are in Essie expression syntax. These parameters affect ranking of studies if sorted by relevance.
 See \`sort\` parameter for details.
 
-Note: When trying JSON format in your browser, do not set too large \`pageSize\` parameter, if \`fields\` is
-unlimited. That may return too much data for the browser to parse and render.
-
 Responses:
-
 1. Success (200 OK):
-Returns paginated clinical trials data in the following format:
-  {
-    totalCount?: number,  // Total matching studies (only if countTotal=true)
-    studies: Array<Study>,  // Array of study objects with requested fields
-    nextPageToken?: string  // Token for next page, if more results exist
-  }
+Returns paginated studies in the following format.
+2. Error (400 Bad Request)`,
 
-Example successful response:
-  {
-    "totalCount": 438897,
-    "studies": [
-      {
-        "protocolSection": {
-          "identificationModule": {
-            "nctId": "NCT03540771",
-            "briefTitle": "Introducing Palliative Care (PC) Within the Treatment of End Stage Liver Disease (ESLD)"
-          },
-          "statusModule": {
-            "overallStatus": "RECRUITING"
-          }
-        },
-        "hasResults": false
-      },
-      {
-        "protocolSection": {
-          "identificationModule": {
-            "nctId": "NCT03630471",
-            "briefTitle": "Effectiveness of a Problem-solving Intervention for Common Adolescent Mental Health Problems in India"
-          },
-          "statusModule": {
-            "overallStatus": "COMPLETED"
-          }
-        },
-        "hasResults": false
-      },
-      {
-        "protocolSection": {
-          "identificationModule": {
-            "nctId": "NCT00587795",
-            "briefTitle": "Orthopedic Study of the Aircast StabilAir Wrist Fracture Brace"
-          },
-          "statusModule": {
-            "overallStatus": "TERMINATED"
-          }
-        },
-        "hasResults": true
-      }
-    ],
-    "nextPageToken": "abracadabra"
-  }
-
-2. Error (400 Bad Request):
-Returns a text message describing the error.
-Example error response: "Invalid parameter value"`,
   parameters: {
     type: 'object',
     required: ['pageSize'],
@@ -114,18 +59,13 @@ Applicable only to \`json\` format.`,
         type: 'string',
         description:
           '"Conditions or disease" query in Essie expression syntax. See "ConditionSearch Area" on Search Areas for more details.',
-        examples: {
-          example1: { value: 'lung cancer' },
-          example2: { value: '(head OR neck) AND pain' },
-        },
+        examples: ['lung cancer', '(head OR neck) AND pain'],
       },
       'query.term': {
         type: 'string',
         description:
           '"Other terms" query in Essie expression syntax. See "BasicSearch Area" on Search Areas for more details.',
-        examples: {
-          example1: { value: 'AREA[LastUpdatePostDate]RANGE[2023-01-15,MAX]' },
-        },
+        examples: ['AREA[LastUpdatePostDate]RANGE[2023-01-15,MAX]'],
       },
       'query.locn': {
         type: 'string',
@@ -191,14 +131,7 @@ Applicable only to \`json\` format.`,
         style: 'pipeDelimited',
         explode: false,
         description: 'Filter by comma- or pipe-separated list of statuses',
-        examples: {
-          example1: {
-            value: ['NOT_YET_RECRUITING', 'RECRUITING'],
-          },
-          example2: {
-            value: ['COMPLETED'],
-          },
-        },
+        examples: [['NOT_YET_RECRUITING', 'RECRUITING'], ['COMPLETED']],
       },
       'filter.geo': {
         type: 'string',
@@ -206,11 +139,7 @@ Applicable only to \`json\` format.`,
           '^distance\\(-?\\d+(\\.\\d+)?,-?\\d+(\\.\\d+)?,\\d+(\\.\\d+)?(km|mi)?\\)$',
         description: `Filter by geo-function. Currently only distance function is supported.
 Format: \`distance(latitude,longitude,distance)\``,
-        examples: {
-          example1: {
-            value: 'distance(39.0035707,-77.1013313,50mi)',
-          },
-        },
+        examples: ['distance(39.0035707,-77.1013313,50mi)'],
       },
       'filter.ids': {
         type: 'array',
@@ -222,24 +151,15 @@ Format: \`distance(latitude,longitude,distance)\``,
         explode: false,
         description: `Filter by comma- or pipe-separated list of NCT IDs (a.k.a. ClinicalTrials.gov identifiers).
 The provided IDs will be searched in NCTId and NCTIdAlias fields.`,
-        examples: {
-          example1: {
-            value: ['NCT04852770', 'NCT01728545', 'NCT02109302'],
-          },
-        },
+        examples: [['NCT04852770', 'NCT01728545', 'NCT02109302']],
       },
       'filter.advanced': {
         type: 'string',
         description: 'Filter by query in Essie expression syntax',
-        examples: {
-          example1: {
-            value: 'AREA[StartDate]2022',
-          },
-          example2: {
-            value:
-              'AREA[MinimumAge]RANGE[MIN, 16 years] AND AREA[MaximumAge]RANGE[16 years, MAX]',
-          },
-        },
+        examples: [
+          'AREA[StartDate]2022',
+          'AREA[MinimumAge]RANGE[MIN, 16 years] AND AREA[MaximumAge]RANGE[16 years, MAX]',
+        ],
       },
       'filter.synonyms': {
         type: 'array',
@@ -250,24 +170,13 @@ The provided IDs will be searched in NCTId and NCTIdAlias fields.`,
         explode: false,
         description:
           'Filter by comma- or pipe-separated list of `area`:`synonym_id` pairs',
-        examples: {
-          example1: {
-            value: ['ConditionSearch:1651367', 'BasicSearch:2013558'],
-          },
-        },
+        examples: [['ConditionSearch:1651367', 'BasicSearch:2013558']],
       },
       aggFilters: {
         type: 'string',
         description:
           'Apply aggregation filters, aggregation counts will not be provided. The value is comma- or pipe-separated list of pairs `filter_id`:`space-separated list of option keys` for the checked options.',
-        examples: {
-          example1: {
-            value: 'results:with,status:com',
-          },
-          example2: {
-            value: 'status:not rec,sex:f,healthy:y',
-          },
-        },
+        examples: ['results:with,status:com', 'status:not rec,sex:f,healthy:y'],
       },
       geoDecay: {
         type: 'string',
@@ -276,14 +185,10 @@ The provided IDs will be searched in NCTId and NCTIdAlias fields.`,
         default: 'func:exp,scale:300mi,offset:0mi,decay:0.5',
         description: `Set proximity factor by distance from \`filter.geo\` location to the closest LocationGeoPoint of a study.
 Ignored, if \`filter.geo\` parameter is not set or response contains more than 10,000 studies.`,
-        examples: {
-          example1: {
-            value: 'func:linear,scale:100km,offset:10km,decay:0.1',
-          },
-          example2: {
-            value: 'func:gauss,scale:500mi,offset:0mi,decay:0.3',
-          },
-        },
+        examples: [
+          'func:linear,scale:100km,offset:10km,decay:0.1',
+          'func:gauss,scale:500mi,offset:0mi,decay:0.3',
+        ],
       },
       fields: {
         type: 'array',
@@ -303,14 +208,10 @@ For \`json\` format, every list item is either area name, piece name, field name
 If a piece or a field is a branch node, all descendant fields will be included.
 All area names are available on Search Areas, the piece and field names — on Data Structure and also can be retrieved at \`/studies/metadata\` endpoint.
 There is a special name, \`@query\`, which expands to all fields queried by search.`,
-        examples: {
-          example1: {
-            value: ['NCTId', 'BriefTitle', 'OverallStatus', 'HasResults'],
-          },
-          example2: {
-            value: ['ProtocolSection'],
-          },
-        },
+        examples: [
+          ['NCTId', 'BriefTitle', 'OverallStatus', 'HasResults'],
+          ['ProtocolSection'],
+        ],
       },
       sort: {
         type: 'array',
@@ -332,17 +233,11 @@ Studies missing sort field are always last. Default sort direction:
 * Date field - \`desc\`
 * Numeric field - \`asc\`
 * \`@relevance\` - \`desc\``,
-        examples: {
-          example1: {
-            value: ['@relevance'],
-          },
-          example2: {
-            value: ['LastUpdatePostDate'],
-          },
-          example3: {
-            value: ['EnrollmentCount:desc', 'NumArmGroups'],
-          },
-        },
+        examples: [
+          ['@relevance'],
+          ['LastUpdatePostDate'],
+          ['EnrollmentCount:desc', 'NumArmGroups'],
+        ],
       },
       countTotal: {
         type: 'boolean',
@@ -358,10 +253,7 @@ The parameter is ignored for the subsequent pages.`,
         default: 10,
         description: `Page size is maximum number of studies to return in response. It does not have to be the same for every page.
 If not specified or set to 0, the default value will be used. It will be coerced down to 1,000, if greater than that.`,
-        examples: {
-          example1: { value: 2 },
-          example2: { value: 100 },
-        },
+        examples: [2, 100],
       },
       pageToken: {
         type: 'string',
