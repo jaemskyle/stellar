@@ -8,13 +8,13 @@ interface AudioVisualizerProps {
 }
 
 /**
- * A unified audio visualization component that seamlessly handles both input and output audio
- * Creates a single, elegant visualization that responds differently to:
- * - User input (microphone) - Shown in shades of blue with expanding waves
- * - Model output (speech) - Shown in shades of green with contracting ripples
- *
- * The visualization maintains a continuous, fluid motion even when idle,
- * but becomes more dynamic and energetic when processing audio.
+ * Enhanced audio visualization component with sophisticated effects
+ * Features:
+ * - Multiple layer groups with different behaviors
+ * - Dynamic opacity and size based on audio intensity
+ * - Smooth transitions between states
+ * - Particle effects for additional visual interest
+ * - Frequency-based color variations
  */
 export function AudioVisualizer({
   isRecording,
@@ -23,6 +23,18 @@ export function AudioVisualizer({
 }: AudioVisualizerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number>();
+
+  // Store particles state
+  const particlesRef = useRef<
+    Array<{
+      x: number;
+      y: number;
+      speed: number;
+      angle: number;
+      size: number;
+      opacity: number;
+    }>
+  >([]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -39,6 +51,69 @@ export function AudioVisualizer({
 
     let isActive = true;
 
+    // Initialize particles
+    const initParticles = () => {
+      const particles = [];
+      for (let i = 0; i < 200; i++) {
+        particles.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          speed: 0.05 + Math.random() * 0.05,
+          angle: Math.random() * Math.PI * 2,
+          size: 10 + Math.random() * 5,
+          opacity: Math.random() * 0.2,
+        });
+      }
+      particlesRef.current = particles;
+    };
+
+    initParticles();
+
+    const updateParticles = (intensity: number) => {
+      particlesRef.current.forEach(particle => {
+        // Update position
+        particle.x +=
+          Math.cos(particle.angle) * particle.speed * (1 + intensity * 2);
+        particle.y +=
+          Math.sin(particle.angle) * particle.speed * (1 + intensity * 2);
+
+        // Wrap around screen
+        if (particle.x < 0) particle.x = canvas.width;
+        if (particle.x > canvas.width) particle.x = 0;
+        if (particle.y < 0) particle.y = canvas.height;
+        if (particle.y > canvas.height) particle.y = 0;
+
+        // Gradually change angle
+        particle.angle += (Math.random() - 0.5) * 0.1;
+      });
+    };
+
+    const drawParticles = (
+      ctx: CanvasRenderingContext2D,
+      intensity: number
+    ) => {
+      particlesRef.current.forEach(particle => {
+        ctx.beginPath();
+        ctx.arc(
+          particle.x / dpr,
+          particle.y / dpr,
+          particle.size * (1 + intensity),
+          0,
+          Math.PI * 2
+        );
+        ctx.fillStyle = `rgba(255, 255, 255, ${particle.opacity * intensity})`;
+        ctx.fill();
+      });
+    };
+
+    const getFrequencyColor = (frequency: number, isInput: boolean) => {
+      // Create color variations based on frequency ranges
+      const hue = isInput ? 210 : 150; // Base hue for input/output
+      const saturation = 70 + frequency * 30; // Vary saturation with frequency
+      const lightness = 45 + frequency * 25; // Vary lightness with frequency
+      return `hsla(${hue}, ${saturation}%, ${lightness}%, `;
+    };
+
     const drawVisualization = (
       ctx: CanvasRenderingContext2D,
       inputData?: Float32Array,
@@ -48,83 +123,163 @@ export function AudioVisualizer({
       const height = ctx.canvas.height / dpr;
       const centerX = width / 2;
       const centerY = height / 2;
-      const baseRadius = Math.min(width, height) * 0.4;
+      const baseRadius = Math.min(width, height) * 0.1; // Smaller base radius
 
-      // Clear canvas with slight fade effect for smooth transitions
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+      // Clear canvas with subtle fade
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
       ctx.fillRect(0, 0, width, height);
 
       const time = Date.now() / 1000;
 
-      // Calculate audio intensities
-      const inputIntensity = inputData
-        ? Array.from(inputData).reduce((sum, val) => sum + Math.abs(val), 0) /
-          inputData.length
-        : 0;
+      // Calculate audio intensities with frequency separation
+      const processAudioData = (data?: Float32Array) => {
+        if (!data) return { total: 0, low: 0, mid: 0, high: 0 };
+        const total =
+          Array.from(data).reduce((sum, val) => sum + Math.abs(val), 0) /
+          data.length;
 
-      const outputIntensity = outputData
-        ? Array.from(outputData).reduce((sum, val) => sum + Math.abs(val), 0) /
-          outputData.length
-        : 0;
+        // Simulate frequency bands (in reality, you'd want to use proper FFT data)
+        const third = Math.floor(data.length / 3);
+        const low =
+          Array.from(data.slice(0, third)).reduce(
+            (sum, val) => sum + Math.abs(val),
+            0
+          ) / third;
+        const mid =
+          Array.from(data.slice(third, third * 2)).reduce(
+            (sum, val) => sum + Math.abs(val),
+            0
+          ) / third;
+        const high =
+          Array.from(data.slice(third * 2)).reduce(
+            (sum, val) => sum + Math.abs(val),
+            0
+          ) / third;
 
-      // Base animation for idle state - much slower and subtler
-      const idleWave = Math.sin(time * 0.25) * 0.05 + 0.975;
+        return { total, low, mid, high };
+      };
 
-      // Draw multiple layers of circles
-      for (let i = 0; i < 200; i++) {
-        // Slower phase movement for more gentle animation
-        const phase =
-          (time * (0.2 + i * 0.1) + (i * Math.PI) / 4) % (2 * Math.PI);
+      const inputIntensity = processAudioData(inputData);
+      const outputIntensity = processAudioData(outputData);
 
-        // Calculate radius based on audio intensity and idle animation
-        let radius = baseRadius * (1 + Math.sin(phase) * 0.2);
+      // Base idle animation - super subtle
+      const idleWave = Math.sin(time * 0.3) * 0.03 + 0.97;
 
-        if (inputIntensity > 0) {
-          // Expand outward for input audio
-          radius *= 1 + inputIntensity * 0.5;
+      // Draw many more layers with different behaviors
+      const totalLayers = 150;
+      const groupRatios = [0.2, 0.2, 0.2, 0.2, 0.2]; // Must sum to 1
+      const groupProperties = [
+        { speedMult: 0.1, radiusMult: 0.9 }, // Slow, normal radius
+        { speedMult: 0.2, radiusMult: 1.0 }, // Slow, normal radius
+        { speedMult: 0.4, radiusMult: 1.25 }, // Medium, larger radius
+        { speedMult: 0.6, radiusMult: 1.4 }, // Fast, largest radius
+        { speedMult: 0.7, radiusMult: 1.5 }, // Fast, largest radius
+      ];
+
+      const layerGroups = groupRatios.map((ratio, index) => {
+        const count =
+          index === groupRatios.length - 1
+            ? totalLayers -
+              Math.floor(
+                totalLayers *
+                  groupRatios.slice(0, -1).reduce((a, b) => a + b, 0)
+              )
+            : Math.floor(totalLayers * ratio);
+
+        return {
+          count,
+          ...groupProperties[index],
+        };
+      });
+
+      let currentLayer = 0;
+      layerGroups.forEach(group => {
+        for (let i = 0; i < group.count; i++) {
+          const layerRatio = currentLayer / totalLayers;
+          const phase =
+            (time * (0.2 + layerRatio * group.speedMult) +
+              (currentLayer * Math.PI) / 8) %
+            (2 * Math.PI);
+
+          // Calculate radius with wider range
+          let radius = baseRadius * (0.8 + layerRatio * 1.2) * group.radiusMult;
+
+          // Apply audio-reactive modifications
+          if (inputIntensity.total > 0) {
+            // Expand outward for input audio with frequency influence
+            radius *= 1 + inputIntensity.total * 0.8;
+            radius += Math.sin(phase * 3) * inputIntensity.high * 20;
+            radius += Math.cos(phase * 2) * inputIntensity.mid * 15;
+            radius += Math.sin(phase) * inputIntensity.low * 10;
+          }
+
+          if (outputIntensity.total > 0) {
+            // Create dynamic ripples for output audio
+            radius *= 1 + Math.sin(phase * 2) * outputIntensity.total * 0.5;
+            radius += Math.cos(phase * 3) * outputIntensity.high * 15;
+            radius += Math.sin(phase * 2) * outputIntensity.mid * 12;
+            radius += Math.cos(phase) * outputIntensity.low * 8;
+          }
+
+          // Apply idle animation when no audio
+          if (inputIntensity.total === 0 && outputIntensity.total === 0) {
+            radius *= idleWave;
+          }
+
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+
+          // Sophisticated color handling
+          if (outputIntensity.total > 0) {
+            // Output audio colors
+            const color = getFrequencyColor(outputIntensity.high, false);
+            ctx.strokeStyle = `${color}${0.4 - layerRatio * 0.3})`;
+          } else if (inputIntensity.total > 0) {
+            // Input audio colors
+            const color = getFrequencyColor(inputIntensity.high, true);
+            ctx.strokeStyle = `${color}${0.4 - layerRatio * 0.3})`;
+          } else {
+            // Idle state colors - very subtle gradient
+            ctx.strokeStyle = `rgba(156, 163, 175, ${0.15 - layerRatio * 0.1})`;
+          }
+
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+
+          currentLayer++;
         }
+      });
 
-        if (outputIntensity > 0) {
-          // Create ripple effect for output audio
-          radius *= 1 + Math.sin(phase * 2) * outputIntensity * 0.3;
-        }
+      // Update and draw particles
+      const maxIntensity = Math.max(
+        inputIntensity.total,
+        outputIntensity.total,
+        0.1
+      );
+      updateParticles(maxIntensity);
+      drawParticles(ctx, maxIntensity);
 
-        // Scale by idle wave when no audio
-        if (inputIntensity === 0 && outputIntensity === 0) {
-          radius *= idleWave;
-        }
+      // Central indicator with gradient
+      const gradient = ctx.createRadialGradient(
+        centerX,
+        centerY,
+        0,
+        centerX,
+        centerY,
+        6
+      );
+      gradient.addColorStop(0, isRecording ? '#3B82F6' : '#9CA3AF');
+      gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
 
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-
-        // Color based on audio source
-        if (outputIntensity > 0) {
-          // Green for model output
-          ctx.strokeStyle = `rgba(34, 197, 94, ${0.6 - i * 0.1})`;
-        } else if (inputIntensity > 0) {
-          // Blue for user input
-          ctx.strokeStyle = `rgba(59, 130, 246, ${0.6 - i * 0.1})`;
-        } else {
-          // Subtle gray for idle state
-          // More subtle gray for idle state with lower opacity
-          ctx.strokeStyle = `rgba(156, 163, 175, ${0.2 - i * 0.03})`;
-        }
-
-        ctx.lineWidth = 2;
-        ctx.stroke();
-      }
-
-      // Add central indicator dot
       ctx.beginPath();
-      ctx.arc(centerX, centerY, 4, 0, 2 * Math.PI);
-      ctx.fillStyle = isRecording ? '#3B82F6' : '#9CA3AF';
+      ctx.arc(centerX, centerY, 6, 0, 2 * Math.PI);
+      ctx.fillStyle = gradient;
       ctx.fill();
     };
 
     const animate = () => {
       if (!isActive) return;
 
-      // Get both input and output audio data
       const inputData =
         wavRecorderRef.current?.getFrequencies?.('voice')?.values;
       const outputData =
@@ -148,8 +303,8 @@ export function AudioVisualizer({
     <div className="flex items-center justify-center">
       <canvas
         ref={canvasRef}
-        className="w-48 h-48 rounded-full bg-gray-50"
-        style={{ width: '192px', height: '192px' }}
+        className="w-64 h-64 rounded-full bg-gray-50"
+        style={{ width: '256px', height: '256px' }}
       />
     </div>
   );
