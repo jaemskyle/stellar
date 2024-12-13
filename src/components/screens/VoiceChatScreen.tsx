@@ -64,6 +64,12 @@ export function VoiceChatScreen({
     }
   }, []);
 
+  /* Filter out function calls from conversation items */
+  const filteredItems = items.filter(
+    item =>
+      item.type !== 'function_call' && item.type !== 'function_call_output'
+  );
+
   return (
     <div
       id="main-page-root"
@@ -104,7 +110,7 @@ export function VoiceChatScreen({
       </div>
 
       <ConversationView
-        items={items}
+        items={filteredItems}
         showConversation={showConversation}
         onDeleteItem={deleteConversationItem}
       />

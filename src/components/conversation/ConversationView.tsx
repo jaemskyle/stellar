@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { ItemType } from '@openai/realtime-api-beta/dist/lib/client.js';
 import { AudioPlayer } from '@/components/ui/AudioPlayer';
+import { logger } from '@/utils/logger';
 
 interface ConversationViewProps {
   /**
@@ -67,18 +68,21 @@ export function ConversationView({
     <ScrollArea
       ref={scrollRef}
       onScroll={handleScroll}
-      className="w-full h-[500px] border border-gray-200 dark:border-gray-800 rounded-xl bg-white/50 dark:bg-black/50 backdrop-blur-xl shadow-sm overflow-auto flex-wrap"
+      className="w-full max-w-4xl h-[500px] border border-gray-200 dark:border-gray-800 rounded-xl bg-white/50 dark:bg-black/50 backdrop-blur-xl shadow-sm overflow-auto flex-wrap mx-auto"
     >
       <div className="p-6 space-y-4">
         {!items.length ? (
           <EmptyConversation />
         ) : (
           items.map(item => (
+            // <div key={item.id}>
+            //   <div>{JSON.stringify(item.id) }</div> {/* Display item as a string */}
             <ConversationItem
               key={item.id}
               item={item}
               onDelete={() => onDeleteItem(item.id)}
             />
+            // </div>
           ))
         )}
       </div>
@@ -110,18 +114,30 @@ interface ConversationItemProps {
  * based on whether it's from the user, assistant, or system.
  */
 function ConversationItem({ item, onDelete }: ConversationItemProps) {
-  const getContent = () => {
-    if (item.type === 'function_call_output') {
-      return null;
+  const getRoleLabel = () => {
+    switch (item.role) {
+      case 'user':
+        return 'you';
+      case 'assistant':
+        return 'james';
+      default:
+        return (item.role || item.type).replaceAll('_', ' ');
     }
+  };
 
-    if (item.formatted.tool) {
-      return (
-        <div className="text-sm text-gray-600 dark:text-gray-300 break-words whitespace-pre-wrap flex-wrap">
-          {item.formatted.tool.name}({item.formatted.tool.arguments})
-        </div>
-      );
-    }
+  const getContent = () => {
+    // if (item.type === 'function_call_output') {
+    //   return null;
+    // }
+
+    // if (item.formatted.tool) {
+    //   return (
+    //     <div className="text-sm text-gray-600 dark:text-gray-300 break-words whitespace-pre-wrap flex-wrap">
+    //       {item.formatted.tool.name}({item.formatted.tool.arguments})
+    //     </div>
+    //   );
+    // }
+    logger.debug('[DEBUG] --jb ConversationItem item:', item);
 
     if (item.role === 'user') {
       return (
@@ -148,31 +164,39 @@ function ConversationItem({ item, onDelete }: ConversationItemProps) {
   const getRoleStyles = () => {
     switch (item.role) {
       case 'system':
-        return 'bg-gray-50 dark:bg-gray-900 border-gray-100 dark:border-gray-800';
+        return 'bg-gray-50/80 dark:bg-gray-900/50 border-gray-100 dark:border-gray-800/50';
       case 'assistant':
-        return 'bg-blue-50 dark:bg-blue-900/20 border-blue-100 dark:border-blue-800/30';
+        return 'bg-green-50/80 dark:bg-green-900/30 border-green-100/50 dark:border-green-800/30';
       default:
-        return 'bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-800/30';
+        return 'bg-blue-50/80 dark:bg-blue-900/30 border-blue-100/50 dark:border-blue-800/30';
     }
   };
 
   return (
-    <div className="group animate-fade-in">
+    <div
+      className={`group animate-fade-in transition-transform duration-200 ease-out ${
+        item.role === 'user'
+          ? 'flex flex-col items-end'
+          : 'flex flex-col items-start'
+      }`}
+    >
       <div
-        className={`relative border rounded-lg overflow-hidden transition-all ${getRoleStyles()}`}
+        className={`relative border rounded-2xl overflow-hidden transition-all duration-200 hover:shadow-sm ${getRoleStyles()} ${
+          item.role === 'user' ? 'max-w-[80%] min-w-[300px]' : 'max-w-full'
+        }`}
       >
-        <div className="px-4 py-3 flex items-center justify-between border-b border-inherit">
+        <div className="px-4 py-2.5 flex items-center justify-between border-b border-inherit/50">
           <div className="flex items-center space-x-2">
-            <span className="text-xs font-medium uppercase tracking-wider text-gray-600 dark:text-gray-300">
-              {(item.role || item.type).replaceAll('_', ' ')}
+            <span className="text-xs font-medium tracking-wide text-gray-600/90 dark:text-gray-300/90">
+              {getRoleLabel()}
             </span>
           </div>
           <button
             onClick={onDelete}
-            className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+            className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity duration-200 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
           >
             <svg
-              className="w-4 h-4"
+              className="w-3.5 h-3.5"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -187,16 +211,13 @@ function ConversationItem({ item, onDelete }: ConversationItemProps) {
           </button>
         </div>
         <div className="p-4">
-          <div className="text-gray-800 dark:text-gray-200 max-w-full overflow-hidden">
+          <div className="text-gray-800 dark:text-gray-200 max-w-full overflow-hidden text-[0.9375rem]">
             {getContent()}
           </div>
-          {item.formatted.file && (
-            <div className="mt-2">
-              <AudioPlayer file={item.formatted.file} />
-            </div>
-          )}
         </div>
       </div>
+      {/* Audio player moved outside the message box */}
+      {item.formatted.file && <AudioPlayer file={item.formatted.file} />}
     </div>
   );
 }
