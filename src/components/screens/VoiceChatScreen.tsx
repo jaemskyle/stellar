@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ConversationView } from '@/components/conversation/ConversationView';
-import { AudioVisualization } from '@/components/ui/AudioVisualization';
+import { AudioVisualizer } from '@/components/ui/AudioVisualization';
 import { ControlButtons } from '@/components/ui/ControlButtons';
 import { StatusIndicator } from '@/components/ui/StatusIndicator';
 import { ErrorDisplay } from '@/components/ui/ErrorDisplay';
@@ -69,7 +69,6 @@ export function VoiceChatScreen({
       id="main-page-root"
       className="flex flex-col items-center justify-between _min-h-screen bg-background p-8 absolute top-0 left-0 right-0 bottom-0 overflow-auto"
     >
-      
       {/* Status Indicator */}
       <div className="absolute top-4 left-4">
         <StatusIndicator
@@ -97,7 +96,7 @@ export function VoiceChatScreen({
       <h1 className="text-2xl font-bold mb-12">Clinical Trial Finder</h1>
 
       <div className="flex-grow flex items-center justify-center w-full">
-        <AudioVisualization
+        <AudioVisualizer
           isRecording={isRecording}
           wavRecorderRef={wavRecorderRef}
           wavStreamPlayerRef={wavStreamPlayerRef}

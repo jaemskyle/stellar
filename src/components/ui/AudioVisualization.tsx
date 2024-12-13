@@ -1,110 +1,153 @@
 import React, { useEffect, useRef } from 'react';
 import { WavRecorder, WavStreamPlayer } from '@/lib/wavtools/index.js';
 
-interface AudioVisualizationProps {
+interface AudioVisualizerProps {
   isRecording: boolean;
   wavRecorderRef: React.RefObject<WavRecorder>;
   wavStreamPlayerRef: React.RefObject<WavStreamPlayer>;
 }
 
 /**
- * AudioVisualization provides real-time visual feedback for audio input and output.
- * It renders two canvas elements:
- * 1. A circular visualization for audio input (microphone)
- * 2. A waveform visualization for audio output (playback)
- *
- * @param isRecording - Whether audio is currently being recorded
- * @param wavRecorderRef - Reference to the WavRecorder instance for input visualization
- * @param wavStreamPlayerRef - Reference to the WavStreamPlayer instance for output visualization
+ * A component that provides real-time visualization of audio input and output
+ * Renders dual circular visualizations:
+ * 1. Top: Input visualization (microphone) with dynamic pulse effect
+ * 2. Bottom: Output visualization (model speech) with ripple effect
  */
-export function AudioVisualization({
+export function AudioVisualizer({
   isRecording,
   wavRecorderRef,
   wavStreamPlayerRef,
-}: AudioVisualizationProps) {
-  const clientCanvasRef = useRef<HTMLCanvasElement>(null);
-  const serverCanvasRef = useRef<HTMLCanvasElement>(null);
+}: AudioVisualizerProps) {
+  const inputCanvasRef = useRef<HTMLCanvasElement>(null);
+  const outputCanvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number>();
 
   useEffect(() => {
-    if (!clientCanvasRef.current || !serverCanvasRef.current) return;
+    const inputCanvas = inputCanvasRef.current;
+    const outputCanvas = outputCanvasRef.current;
+    if (!inputCanvas || !outputCanvas) return;
 
-    const clientCanvas = clientCanvasRef.current;
-    const serverCanvas = serverCanvasRef.current;
-    const clientCtx = clientCanvas.getContext('2d');
-    const serverCtx = serverCanvas.getContext('2d');
+    const inputCtx = inputCanvas.getContext('2d');
+    const outputCtx = outputCanvas.getContext('2d');
+    if (!inputCtx || !outputCtx) return;
 
-    if (!clientCtx || !serverCtx) return;
+    // Set canvas dimensions for crisp rendering
+    const dpr = window.devicePixelRatio || 1;
+    [inputCanvas, outputCanvas].forEach(canvas => {
+      canvas.width = canvas.offsetWidth * dpr;
+      canvas.height = canvas.offsetHeight * dpr;
+      const ctx = canvas.getContext('2d')!;
+      ctx.scale(dpr, dpr);
+    });
 
-    let isLoaded = true;
+    let isActive = true;
 
-    const animate = () => {
-      // Draw input audio visualization (circular)
-      const width = clientCanvas.width;
-      const height = clientCanvas.height;
+    const drawInputVisualization = (
+      ctx: CanvasRenderingContext2D,
+      audioData?: Float32Array
+    ) => {
+      const width = ctx.canvas.width / dpr;
+      const height = ctx.canvas.height / dpr;
+      const centerX = width / 2;
+      const centerY = height / 2;
+      const baseRadius = Math.min(width, height) * 0.3;
 
-      // Clear both canvases
-      clientCtx.clearRect(0, 0, width, height);
-      serverCtx.clearRect(0, 0, width, height);
+      ctx.clearRect(0, 0, width, height);
 
-      // Draw input visualization
-      if (isRecording) {
-        // Base circle
-        clientCtx.beginPath();
-        clientCtx.arc(width / 2, height / 2, 50, 0, 2 * Math.PI);
-        clientCtx.strokeStyle = '#666';
-        clientCtx.lineWidth = 2;
-        clientCtx.stroke();
+      // Draw base circle
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, baseRadius, 0, 2 * Math.PI);
+      ctx.strokeStyle = isRecording ? '#3B82F6' : '#E5E7EB';
+      ctx.lineWidth = 2;
+      ctx.stroke();
 
-        // Animated waves
-        const time = Date.now() / 1000;
+      if (isRecording && audioData) {
+        // Calculate audio intensity
+        const intensity =
+          Array.from(audioData).reduce((sum, val) => sum + Math.abs(val), 0) /
+          audioData.length;
+
+        // Draw dynamic waves
         const numWaves = 3;
+        const maxRadius = baseRadius * 1.5;
+        const time = Date.now() / 1000;
 
         for (let i = 0; i < numWaves; i++) {
-          const audioData =
-            wavRecorderRef.current?.getFrequencies?.('voice')?.values;
-          const audioInfluence = audioData
-            ? Array.from(audioData).reduce((sum, val) => sum + val, 0) /
-              audioData.length
-            : Math.sin(time * 2 + i);
+          const phase = (time * 2 + i * 0.7) % (2 * Math.PI);
+          const waveRadius =
+            baseRadius + Math.sin(phase) * intensity * maxRadius * 0.3;
 
-          const radius = 50 + audioInfluence * 10;
-
-          clientCtx.beginPath();
-          clientCtx.arc(width / 2, height / 2, radius, 0, 2 * Math.PI);
-          clientCtx.strokeStyle = `rgba(0, 153, 255, ${0.3 - i * 0.1})`;
-          clientCtx.stroke();
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, waveRadius, 0, 2 * Math.PI);
+          ctx.strokeStyle = `rgba(59, 130, 246, ${0.4 - i * 0.1})`;
+          ctx.stroke();
         }
       }
+    };
 
-      // Draw output visualization (small waveform)
-      if (wavStreamPlayerRef.current?.analyser) {
-        const values =
-          wavStreamPlayerRef.current.getFrequencies('voice')?.values ||
-          new Float32Array([0]);
+    const drawOutputVisualization = (
+      ctx: CanvasRenderingContext2D,
+      audioData?: Float32Array
+    ) => {
+      const width = ctx.canvas.width / dpr;
+      const height = ctx.canvas.height / dpr;
+      const centerX = width / 2;
+      const centerY = height / 2;
+      const baseRadius = Math.min(width, height) * 0.25;
 
-        serverCtx.beginPath();
-        serverCtx.moveTo(0, height / 2);
+      ctx.clearRect(0, 0, width, height);
 
-        values.forEach((value, index) => {
-          const x = (index / values.length) * width;
-          const y = height / 2 + (value * height) / 4;
-          serverCtx.lineTo(x, y);
-        });
+      if (audioData) {
+        // Calculate audio intensity for output
+        const intensity =
+          Array.from(audioData).reduce((sum, val) => sum + Math.abs(val), 0) /
+          audioData.length;
 
-        serverCtx.strokeStyle = '#009900';
-        serverCtx.stroke();
+        // Draw ripple effect
+        const time = Date.now() / 1000;
+        const numRipples = 5;
+
+        for (let i = 0; i < numRipples; i++) {
+          const ripplePhase = (time * 3 + i * 0.5) % (2 * Math.PI);
+          const rippleRadius =
+            baseRadius * (1 + Math.sin(ripplePhase) * 0.3 * intensity);
+
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, rippleRadius, 0, 2 * Math.PI);
+          ctx.strokeStyle = `rgba(34, 197, 94, ${0.5 - i * 0.1})`;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+      } else {
+        // Idle state
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, baseRadius, 0, 2 * Math.PI);
+        ctx.strokeStyle = '#E5E7EB';
+        ctx.lineWidth = 2;
+        ctx.stroke();
       }
+    };
 
-      if (isLoaded) {
-        animationFrameRef.current = requestAnimationFrame(animate);
-      }
+    const animate = () => {
+      if (!isActive) return;
+
+      // Get audio data from recorder and player
+      const inputData =
+        wavRecorderRef.current?.getFrequencies?.('voice')?.values;
+      const outputData =
+        wavStreamPlayerRef.current?.getFrequencies?.('voice')?.values;
+
+      // Draw visualizations
+      drawInputVisualization(inputCtx, inputData);
+      drawOutputVisualization(outputCtx, outputData);
+
+      animationFrameRef.current = requestAnimationFrame(animate);
     };
 
     animate();
 
     return () => {
-      isLoaded = false;
+      isActive = false;
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
@@ -112,18 +155,16 @@ export function AudioVisualization({
   }, [isRecording, wavRecorderRef, wavStreamPlayerRef]);
 
   return (
-    <div className="relative flex flex-col items-center space-y-2">
+    <div className="flex flex-col items-center space-y-6">
       <canvas
-        ref={clientCanvasRef}
-        className="w-32 h-32 rounded-full bg-gray-50"
-        width={128}
-        height={128}
+        ref={inputCanvasRef}
+        className="w-40 h-40 rounded-full bg-gray-50"
+        style={{ width: '160px', height: '160px' }}
       />
       <canvas
-        ref={serverCanvasRef}
-        className="w-32 h-8 rounded-lg bg-gray-50"
-        width={128}
-        height={32}
+        ref={outputCanvasRef}
+        className="w-40 h-40 rounded-full bg-gray-50"
+        style={{ width: '160px', height: '160px' }}
       />
     </div>
   );
