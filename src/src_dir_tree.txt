@@ -1,0 +1,76 @@
+.
+├── App.tsx
+├── components
+│   ├── Card.astro
+│   ├── ConsolePage.scss
+│   ├── ConversationView.tsx
+│   ├── Logo.tsx
+│   ├── MainPage.tsx
+│   ├── Message.tsx
+│   ├── ProductDisplay.tsx
+│   ├── SuccessDisplay.tsx
+│   ├── button
+│   │   ├── Button.scss
+│   │   └── Button.tsx
+│   ├── conversation
+│   │   └── ConversationView.tsx
+│   ├── screens
+│   │   ├── LandingScreen.tsx
+│   │   ├── ResultsScreen.tsx
+│   │   └── VoiceChatScreen.tsx
+│   ├── settings
+│   │   ├── SettingsMenu.tsx
+│   │   └── VadToggle.tsx
+│   └── ui
+│       ├── AudioPlayer.tsx
+│       ├── AudioVisualization.tsx
+│       ├── ControlButtons.tsx
+│       ├── ErrorDisplay.tsx
+│       ├── LoadingState.tsx
+│       ├── StatusIndicator.tsx
+│       ├── alert.tsx
+│       ├── button.tsx
+│       ├── card.tsx
+│       ├── scroll-area.tsx
+│       ├── tabs.tsx
+│       └── toggle.tsx
+├── env.d.ts
+├── hooks
+│   ├── useAudioManager.ts
+│   └── useSettings.ts
+├── layouts
+│   ├── Layout.astro
+│   └── SiteLayout.astro
+├── lib
+│   ├── ctg-tool-def.ts
+│   ├── ctg-tool.ts
+│   ├── report-handler.ts
+│   ├── utils.ts
+│   └── wavtools
+│       ├── index.js
+│       └── lib
+│           ├── analysis
+│           │   ├── audio_analysis.js
+│           │   └── constants.js
+│           ├── wav_packer.js
+│           ├── wav_recorder.js
+│           ├── wav_stream_player.js
+│           └── worklets
+│               ├── audio_processor.js
+│               └── stream_processor.js
+├── middleware.ts
+├── pages
+│   ├── api
+│   │   ├── config.ts
+│   │   ├── create-checkout-session.ts
+│   │   ├── create-portal-session.ts
+│   │   └── webhook.ts
+│   ├── index.astro
+│   └── subscribe.astro
+├── src_dir_tree.txt
+├── styles
+│   └── globals.css
+└── utils
+    ├── logger.ts
+    ├── model_instructions.js
+    └── wav_renderer.ts
