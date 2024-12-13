@@ -183,12 +183,14 @@ const TrialCard: React.FC<TrialCardProps> = ({
                 <div className="grid grid-cols-3 gap-4 text-sm">
                   <div>
                     <span className="font-medium text-gray-900">
-                      Minimum Age:
+                      Age Range:
                     </span>{' '}
                     <span className="text-gray-700">
-                      {trial.eligibilityModule.minimumAge}
+                      {trial.eligibilityModule.minimumAge} -{' '}
+                      {trial.eligibilityModule.maximumAge}
                     </span>
                   </div>
+                  {/* {trial.eligibilityModule.minimumAge}—{trial.eligibilityModule.maximumAge} */}
                   <div>
                     <span className="font-medium text-gray-900">Sex:</span>{' '}
                     <span className="text-gray-700">

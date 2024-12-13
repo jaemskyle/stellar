@@ -1,5 +1,5 @@
-import type { FunctionComponent } from "react";
-import { Logo } from "./Logo";
+import type { FunctionComponent } from 'react';
+import { Logo } from './Logo';
 
 interface SuccessDisplayProps {
   sessionId: string;
@@ -10,10 +10,10 @@ export const SuccessDisplay: FunctionComponent<SuccessDisplayProps> = ({
 }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const response = await fetch("/api/create-portal-session", {
-      method: "POST",
+    const response = await fetch('/api/create-portal-session', {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({ session_id: sessionId }),
     });

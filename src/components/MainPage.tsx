@@ -1,41 +1,45 @@
 /* eslint-disable no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// src/components/MainPage.tsx
+/** src/components/MainPage.tsx
+ * Main Page Component
+ */
 import { logger } from '@/utils/logger';
-import { Button } from '@/components/ui/button';
-// import { ScrollArea } from '@/components/ui/scroll-area';
-// import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RealtimeClient } from '@openai/realtime-api-beta';
 import type {
   InputTextContentType,
   ItemType,
 } from '@openai/realtime-api-beta/dist/lib/client.js';
-import { Eye, EyeOff, Mic, PhoneOff, Settings } from 'lucide-react';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-// import { motion, AnimatePresence } from 'framer-motion';
+import { useCallback, useEffect, useRef, useState } from 'react';
 // Import all the required utilities and tools
 import { useAudioManager } from '@/hooks/useAudioManager';
-import { WavRecorder, WavStreamPlayer } from '@/lib/wavtools/index.js';
-import { instructions } from '@/utils/model_instructions.js';
 import {
   CTG_TOOL_DEFINITION,
   getClinicalTrials,
   type StudyInfo,
-} from '../lib/ctg-tool';
+  type PagedStudyResponse,
+} from '@/lib/ctg-tool';
 import {
   REPORT_TOOL_DEFINITION,
   reportHandler,
   type TrialsReport,
-} from '../lib/report-handler';
+} from '@/lib/report-handler';
+import { WavRecorder, WavStreamPlayer } from '@/lib/wavtools/index.js';
+import { instructions } from '@/utils/model_instructions.js';
 
 // Import screens
 import { LandingScreen } from '@/components/screens/LandingScreen';
-import { VoiceChatScreen } from '@/components/screens/VoiceChatScreen';
 import ResultsScreen from '@/components/screens/ResultsScreen';
-import { LoadingState } from '@/components/ui/LoadingState';
+import { VoiceChatScreen } from '@/components/screens/VoiceChatScreen';
 import { ErrorDisplay } from '@/components/ui/ErrorDisplay';
+import { LoadingState } from '@/components/ui/LoadingState';
 import { useSettings } from '@/hooks/useSettings';
-import { SettingsMenu } from '@/components/settings/SettingsMenu';
+
+// import { SettingsMenu } from '@/components/settings/SettingsMenu';
+// import { Button } from '@/components/ui/button';
+// import { ScrollArea } from '@/components/ui/scroll-area';
+// import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+// import { Eye, EyeOff, Mic, PhoneOff, Settings } from 'lucide-react';
+// import { motion, AnimatePresence } from 'framer-motion';
 
 // Constants
 const LOCAL_RELAY_SERVER_URL: string =
@@ -89,7 +93,7 @@ export default function MainPage() {
   const [error, setError] = useState<Error | null>(null);
 
   // Trials and Report State
-  const [, setTrials] = useState<StudyInfo[]>([]);
+  const [trials, setTrials] = useState<PagedStudyResponse>({ studies: [] });
   const [isLoadingTrials, setIsLoadingTrials] = useState(false);
   const [finalReport, setFinalReport] = useState<TrialsReport | null>(null);
   // const [isReportModalOpen, setIsReportModalOpen] = useState(false);
@@ -159,36 +163,64 @@ export default function MainPage() {
         },
       },
       async ({ key, value }: { [key: string]: any }) => {
+        logger.info(`
+          @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+          @ [TOOL CALL] Calling 'set_memory' function:
+          @
+          @ Key: ${key}
+          @ Value: ${value}
+          @
+        `);
         setMemoryKv(memoryKv => {
           const newKv = { ...memoryKv };
           newKv[key] = value;
           return newKv;
         });
+        logger.info(`
+          @
+          @ [TOOL CALL] 'set_memory' function call complete.
+          @ Memory updated with key "${key}"
+          @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+        `);
         return { ok: true };
       }
     );
 
     client.addTool(CTG_TOOL_DEFINITION, async (params: any) => {
       try {
+        logger.info(`
+          @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+          @ [TOOL CALL] Calling 'get_trials' function:
+          @
+          @ Parameters:
+          @ ${JSON.stringify(params)}
+        `);
         setIsLoadingTrials(true);
-        setTrials([]);
+        setTrials({ studies: [] });
 
-        const trials = await getClinicalTrials(params);
+        logger.debug('[DEBUG] Fetching clinical trials with params:', params);
+        const response = await getClinicalTrials(params);
 
-        // Update latest trials in report handler
-        reportHandler.updateLatestTrials(trials, params);
+        // Update latest trials in report handler - pass just the studies array
+        reportHandler.updateLatestTrials(response.studies, params);
 
-        setTrials(trials);
+        setTrials(response);
         setIsLoadingTrials(false);
 
+        logger.info(`
+          @
+          @ [TOOL CALL] 'get_trials' function call complete.
+          @ Found ${response.studies.length} trials matching criteria
+          @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+        `);
         return {
           status: 'success',
-          resultCount: trials.length,
-          trials,
-          message: `Successfully retrieved ${trials.length} clinical trials matching your criteria.`,
+          resultCount: response.studies.length,
+          trials: response.studies, // Send just the studies array
+          message: `Successfully retrieved ${response.studies.length} clinical trials matching your criteria.`,
           summary:
-            trials.length > 0
-              ? `Found ${trials.length} trials. The first trial is "${trials[0].studyTitle}" (${trials[0].nctNumber}).`
+            response.studies.length > 0
+              ? `Found ${response.studies.length} trials. The first trial is "${response.studies[0].studyTitle}" (${response.studies[0].nctNumber}).`
               : 'No matching trials found with the current criteria.',
         };
       } catch (error) {
@@ -212,12 +244,26 @@ export default function MainPage() {
           params.conversationComplete,
           params.finalNotes
         );
-
+        logger.info(`
+          @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+          @ [TOOL CALL] Calling 'generate_report' function:
+          @
+          @ Conversation Complete: ${params.conversationComplete}
+          @ Final Notes: ${params.finalNotes}
+          @
+        `);
         setFinalReport(report);
         // setIsReportModalOpen(true); // Open modal when assistant generates report
         setCurrentScreen('results');
+
         await disconnectConversation();
 
+        logger.info(`
+          @
+          @ [TOOL CALL] 'generate_report' function call complete.
+          @ Report generated successfully.
+          @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+        `);
         return {
           status: 'success',
           message: 'Report generated successfully.',
@@ -277,30 +323,21 @@ export default function MainPage() {
     await initializeAudio();
 
     // Connect to realtime API
-    logger.debug('DEBUG: await client.connect() - pre-try');
+    logger.debug('[DEBUG] await client.connect() - pre-try');
     await client.connect();
-    logger.debug('DEBUG: await client.connect() - post-try');
+    logger.debug('[DEBUG] await client.connect() - post-try');
 
-    // const userMessageContent: InputTextContentType[] = [
-    //   {
-    //     type: 'input_text',
-    //     text: `Hello! I'm the engineer developing this application, and I'm just performing some tests. We don't need to talk about clinical trials or anything. Just perform a sample search, like for the latest clinical trials on ADHD. That's it.`,
-    //   },
-    // ];
-    // logger.debug('!!!!! jb ==userMessageContent', userMessageContent);
-      // client.sendUserMessageContent(userMessageContent);
+    const userMessageContent: InputTextContentType[] = [
+      {
+        type: 'input_text',
+        text: `Hello! I'm the engineer developing this application, and I'm just performing some tests. We don't need to talk about clinical trials or anything. Just perform a sample search, like for the latest clinical trials on ADHD. That's it. In addition, please also memorize the fact that I'm 30 years old, and use that information for search filtering purposes. Thanks!`,
+      },
+    ];
+    client.sendUserMessageContent(userMessageContent);
+    logger.debug('[DEBUG] Sent text message:', userMessageContent);
 
-    // client.sendUserMessageContent([
-    //   {
-    //     type: `input_text`,
-    //     text: `Hello! I'm the engineer developing this application, and I'm just performing some tests. We don't need to talk about clinical trials or anything. Just perform a sample search, like for the latest clinical trials on ADHD. That's it.`,
-    //   },
-    // ]);
-      // logger.debug('DEBUG: Sent text message:', userMessageContent);
-
-    // logger.log('Forcing model response generation');
-    client.createResponse();
-    logger.log('Model response creation complete');
+    // console.log('Forcing model response generation');
+    // client.createResponse();
 
     const wavRecorder = wavRecorderRef.current;
     if (wavRecorder && client.getTurnDetectionType() === 'server_vad') {
@@ -309,8 +346,8 @@ export default function MainPage() {
 
     logger.log('====== CONVERSATION CONNECTION COMPLETE ======');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientRef, initializeAudio, wavRecorderRef]);
-  // }, [clientRef, wavRecorderRef, wavStreamPlayerRef]);
+  }, [clientRef]);
+  // }, [clientRef, initializeAudio, wavRecorderRef, wavStreamPlayerRef]);
 
   /**
    * Disconnect and reset conversation state
@@ -318,21 +355,24 @@ export default function MainPage() {
    */
   const disconnectConversation = useCallback(async () => {
     // if (!clientRef.current) return;
-
+    logger.log('====== DISCONNECTING CONVERSATION ======');
     setIsConnected(false);
     setRealtimeEvents([]);
     setItems([]);
     setMemoryKv({});
-    setTrials([]);
+    setTrials({ studies: [] });
     setIsLoadingTrials(false);
     // setFinalReport(null);
     // reportHandler.clear();
 
+    logger.debug('\n[DEBUG] Disconnecting CLIENT');
     const client = clientRef.current;
     client?.disconnect(); // Safely disconnect if client exists
-
+    logger.debug('[DEBUG] Client disconnected\n------');
+    logger.debug('[DEBUG] Resetting AUDIO STATE');
     await resetAudioState();
-  }, [clientRef, resetAudioState]);
+    logger.debug('[DEBUG] Audio state reset\n------');
+  }, [clientRef]);
 
   /**
    * Full cleanup including report data
@@ -342,14 +382,14 @@ export default function MainPage() {
     await disconnectConversation();
     setFinalReport(null);
     reportHandler.clear();
-  }, [disconnectConversation]);
+  }, []);
 
   /**
    * Report Management
    * Handles manual report generation and conversation end
    */
   const handleManualReportGeneration = useCallback(async () => {
-    if (!reportHandler.getLatestTrials().length) {
+    if (!trials.studies.length) {
       logger.warn('No trials available for report generation');
       // First disconnect conversation
       await disconnectConversation();
@@ -361,9 +401,6 @@ export default function MainPage() {
     try {
       logger.debug('Generating report manually');
 
-      // First disconnect conversation
-      await disconnectConversation();
-
       // Generate report first
       const report = reportHandler.generateReport(
         memoryKv,
@@ -372,6 +409,9 @@ export default function MainPage() {
       );
       setFinalReport(report);
       logger.log('Report set:', report);
+
+      // Disconnect conversation
+      await disconnectConversation();
 
       // setIsReportModalOpen(true); // Open modal after report
       // generation
@@ -386,7 +426,7 @@ export default function MainPage() {
       logger.error('Error during report generation:', error);
       // Optionally show error to user
     }
-  }, [memoryKv, disconnectConversation]);
+  }, [trials.studies.length]);
 
   /**
    * Delete a conversation item by its ID.
@@ -510,29 +550,54 @@ export default function MainPage() {
     const eventHandlers = {
       'realtime.event': (realtimeEvent: RealtimeEvent) => {
         if (realtimeEvent.event.type === 'error') {
-          logger.error(
-            `
-            ! ===============================
-            ! ERROR IN REALTIME EVENT
-            ! ===============================
+          // Check if the error has a message saying exactly:
+          // "Conversation already has an active response", in which
+          // case, we should run `client.createResponse()` to force a
+          // new response. This is a workaround for a bug in the
+          // realtime API.
+          if (
+            realtimeEvent.event.error.message ===
+            'Conversation already has an active response'
+          ) {
+            logger.error(
+              `
+              ! ********************************************************
+              ! [ERROR] "CONVERSATION ALREADY HAS AN ACTIVE RESPONSE"
+              ! ********************************************************
+              ! Event Type: ${realtimeEvent.event.error.type}
+              ! Details:
+              `,
+              realtimeEvent
+            );
+            logger.warn(
+              'Forcing a new response due to known bug in realtime API'
+            );
+            // Add a delay of half a second before creating a new response:
+            setTimeout(() => {
+              client.createResponse();
+            }, 500);
+          } else {
+            logger.error(
+              `
+            ! ==========================================================
+            ! [ERROR] UNKNOWN REALTIME EVENT ERROR
+            ! ==========================================================
             ! Event: ${JSON.stringify(realtimeEvent.event)}
             ! Details:
             `,
-            realtimeEvent
-          );
-          logger.error(client.conversation.responses);
-          client.createResponse();
+              realtimeEvent
+            );
+          }
+          logger.debug(client.conversation.responses);
         } else if (realtimeEvent.source === 'server') {
           logger.log(
             `
             ╔════════════════════════════════════════════════════════════════════════════════
-            ║ REALTIME EVENT - RECEIVED FROM ${realtimeEvent.source}
-            ║ Type: ${realtimeEvent.event.type}
-            ║ Time: ${realtimeEvent.time}
+            ║ [SERVER] SENT "${realtimeEvent.event.type}" event to CLIENT
+            ╚════════════════════════════════════════════════════════════════════════════════
             ║ Event ID: ${realtimeEvent.event.event_id}
             ║ Item ID: ${realtimeEvent.event.item?.id}
             ║ Event Details Below:
-            ╚════════════════════════════════════════════════════════════════════════════════
             `,
             realtimeEvent
           );
@@ -541,13 +606,11 @@ export default function MainPage() {
           logger.log(
             `
             +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            + REALTIME EVENT - SENT BY ${realtimeEvent.source}
-            + Type: ${realtimeEvent.event.type}
-            + Time: ${realtimeEvent.time}
+            + [CLIENT] SENT "${realtimeEvent.event.type}" event to SERVER
+            +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             + Event ID: ${realtimeEvent.event.event_id}
             + Item ID: ${realtimeEvent.event.item?.id}
             + Event Details Below:
-            +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             `,
             realtimeEvent
           );
@@ -577,7 +640,7 @@ export default function MainPage() {
         if (realtimeEvent.event.type === 'response.done') {
           setActiveResponseId(null);
           logger.debug(
-            `Response count: ${client.conversation.responses.length}`
+            `[DEBUG] Response count: ${client.conversation.responses.length}`
           );
         }
 
@@ -636,9 +699,8 @@ export default function MainPage() {
 
       'conversation.updated': async ({ item, delta }: any) => {
         logger.log(
-          `CONVERSATION UPDATE --- Item ID: ${item.id}; Status: ${item.status}; ¶¶¶¶¶ HAS AUDIO DELTA: ${!!delta?.audio} ¶¶¶¶¶`
+          `[CONVERSATION] UPDATE --- Item ID: ${item.id}; Status: ${item.status}; ¶¶¶¶¶ HAS AUDIO DELTA: ${!!delta?.audio} ¶¶¶¶¶`
         );
-
         if (delta?.audio) {
           logger.debug(
             '[AUDIO] AUDIO OUT DETECTED --- Processing new audio delta'
@@ -688,13 +750,15 @@ export default function MainPage() {
       Object.entries(eventHandlers).forEach(([event, handler]) => {
         client.off(event, handler);
       });
-
       // Cleanup audio resources
       if (wavStreamPlayer) {
         wavStreamPlayer.interrupt();
       }
+      // cleanup; resets to defaults
+      client.reset();
     };
-  }, [isInitialized, clientRef, wavRecorderRef, wavStreamPlayerRef]);
+  }, [isInitialized, clientRef]);
+  // }, [isInitialized, clientRef, wavRecorderRef, wavStreamPlayerRef]);
 
   /**
    * Tool and Core Setup
@@ -750,12 +814,12 @@ export default function MainPage() {
   const handleStart = async () => {
     logger.log('=== Handling START - pre-try ===');
     try {
-      logger.debug('DEBUG: clientRef current state:', clientRef.current); // Add this
-      logger.debug('DEBUG: apiKey state:', apiKey); // Add this
+      logger.debug('[DEBUG] clientRef current state:', clientRef.current); // Add this
+      logger.debug('[DEBUG] apiKey state:', apiKey); // Add this
       logger.log('--- Connecting conversation ---');
       await connectConversation();
       logger.log('--- Connection successful ---');
-      logger.debug('DEBUG: Setting current screen to voiceChat');
+      logger.debug('[DEBUG] Setting current screen to voiceChat');
       setCurrentScreen('voiceChat');
       logger.log('=== Handling START done - post-try ===');
     } catch (error) {
@@ -783,8 +847,7 @@ export default function MainPage() {
     <div
       id="main-page-root"
       className="flex flex-col flex-1 flex-grow overflow-auto bg-white absolute top-0 left-0 right-0 bottom-0 overflow-auto"
-    >      
-    
+    >
       {/* Settings Button - Only show when NOT on results screen */}
       {/* {currentScreen !== 'results' && (
         <div>
@@ -815,7 +878,7 @@ export default function MainPage() {
             try {
               // await connectConversation();
               // setCurrentScreen('voiceChat');
-              logger.debug('DEBUG: START Button clicked - immediate feedback');
+              logger.debug('[DEBUG] START Button clicked - immediate feedback');
               handleStart();
             } catch (err) {
               setError(err as Error);
