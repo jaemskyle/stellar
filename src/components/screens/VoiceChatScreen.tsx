@@ -101,7 +101,7 @@ export function VoiceChatScreen({
 
       <h1 className="text-2xl font-bold mb-12">Clinical Trial Finder</h1>
 
-      <div className="flex-grow flex items-center justify-center w-full">
+      <div className="flex-grow flex items-center justify-center w-full mb-3">
         <AudioVisualizer
           isRecording={isRecording}
           wavRecorderRef={wavRecorderRef}

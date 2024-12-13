@@ -68,7 +68,7 @@ export function ConversationView({
     <ScrollArea
       ref={scrollRef}
       onScroll={handleScroll}
-      className="w-full max-w-4xl h-[500px] border border-gray-200 dark:border-gray-800 rounded-xl bg-white/50 dark:bg-black/50 backdrop-blur-xl shadow-sm overflow-auto flex-wrap mx-auto"
+      className="w-full max-w-4xl min-h-[500px] h-[800px] border border-gray-200 dark:border-gray-800 rounded-xl bg-white/50 dark:bg-black/50 backdrop-blur-xl shadow-sm overflow-auto flex-wrap mx-auto"
     >
       <div className="p-6 space-y-4">
         {!items.length ? (
