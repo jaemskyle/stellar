@@ -123,7 +123,7 @@ export function AudioVisualizer({
       const height = ctx.canvas.height / dpr;
       const centerX = width / 2;
       const centerY = height / 2;
-      const baseRadius = Math.min(width, height) * 0.1; // Smaller base radius
+      const baseRadius = Math.min(width, height) * 0.2; // Smaller base radius
 
       // Clear canvas with subtle fade
       ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
