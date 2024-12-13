@@ -2,19 +2,16 @@
 // src/pages/index.astro
 import '@/styles/globals.css';
 import Layout from '../layouts/Layout.astro';
-import Card from '../components/Card.astro';
-import VoiceChat from '../components/VoiceChat';
-import { ConsolePageOG } from '../components/ConsolePageOG';
+// import Card from '../components/Card.astro';
 import MainPage from '../components/MainPage';
 // import { ClientApp } from '../../misc/ClientApp';
-import SiteLayout from '../layouts/SiteLayout.astro';
+// import SiteLayout from '../layouts/SiteLayout.astro';
 import {
   SignedIn,
   SignedOut,
   UserButton,
   SignInButton,
 } from '@clerk/astro/components';
-import TestButton from '../components/TestButton';
 
 // Get current mode from URL parameter or environment
 const debugMode =
