@@ -28,7 +28,7 @@ import {
   CTG_TOOL_DEFINITION,
   getClinicalTrials,
   type StudyInfo,
-} from '../lib/ctg-tool';
+} from '../lib/ctgtool/ctg-tool';
 import {
   reportHandler,
   REPORT_TOOL_DEFINITION,

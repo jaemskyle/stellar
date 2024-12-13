@@ -1,5 +1,5 @@
 import React from 'react';
-import type { StudyInfo } from '@/lib/ctg-tool';
+import type { StudyInfo } from '@/lib/ctgtool/ctg-tool';
 import type { MemoryKV } from '@/types/console';
 import TrialsDisplay from '@/components/TrialsDisplay';
 

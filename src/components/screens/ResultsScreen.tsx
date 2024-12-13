@@ -10,7 +10,7 @@ import {
   ChevronDown,
   Info,
 } from 'lucide-react';
-import type { StudyInfo } from '@/lib/ctg-tool';
+import type { StudyInfo } from '@/lib/ctgtool/ctg-tool';
 import type { TrialsReport } from '@/lib/report-handler';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';

@@ -1,6 +1,6 @@
 // src/lib/report-handler.ts
 
-import type { StudyInfo } from './ctg-tool';
+import type { StudyInfo } from './ctgtool/ctg-tool';
 
 /**
  * Interface for the final clinical trials report

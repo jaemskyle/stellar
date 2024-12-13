@@ -4,7 +4,7 @@ import type { RealtimeClient } from '@openai/realtime-api-beta';
 import type { ItemType } from '@openai/realtime-api-beta/dist/lib/client.js';
 import type { RealtimeEvent, MemoryKV } from '@/types/console';
 import type { WavStreamPlayer } from '@/lib/wavtools';
-import type { StudyInfo } from '@/lib/ctg-tool';
+import type { StudyInfo } from '@/lib/ctgtool/ctg-tool';
 import { reportHandler } from '@/lib/report-handler';
 
 interface UseConnectionManagerProps {

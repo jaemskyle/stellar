@@ -1,5 +1,5 @@
 import React from 'react';
-import type { StudyInfo } from '../lib/ctg-tool';
+import type { StudyInfo } from '../lib/ctgtool/ctg-tool';
 
 // // Define the type for a single trial
 // interface StudyInfo {

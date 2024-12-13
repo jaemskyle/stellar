@@ -29,21 +29,14 @@ import { WavRenderer } from '@/utils/wav_renderer';
 import { instructions } from '@/utils/model_instructions.js';
 
 // Icons
-import {
-  Eye,
-  EyeOff,
-  Mic,
-  MicOff,
-  PhoneOff,
-  Settings,
-} from 'lucide-react';
+import { Eye, EyeOff, Mic, MicOff, PhoneOff, Settings } from 'lucide-react';
 
 // Features
 import {
   CTG_TOOL_DEFINITION,
   getClinicalTrials,
   type StudyInfo,
-} from '../lib/ctg-tool';
+} from '../lib/ctgtool/ctg-tool';
 import {
   reportHandler,
   REPORT_TOOL_DEFINITION,
@@ -187,8 +180,6 @@ export function ConsolePageOG() {
       window.location.reload();
     }
   }, []);
-
-  
 
   /**
    * Tool Management
@@ -724,7 +715,6 @@ export function ConsolePageOG() {
     };
   }, []);
 
-  
   // UI Components
   const LandingScreen: React.FC<LandingScreenProps> = ({ onStart }) => (
     <div className="flex flex-col flex-grow overflow-auto items-center justify-center p-6 text-center">
@@ -912,7 +902,7 @@ export function ConsolePageOG() {
       </div>
     );
   };
-  
+
   const AudioPlayer = ({ file }: { file: { url: string } }) => (
     <div className="mt-2">
       <audio src={file.url} controls className="w-full max-w-xs" />
@@ -1066,7 +1056,6 @@ export function ConsolePageOG() {
     );
   };
 
-
   const VoiceChatScreen = ({
     isConnected,
     isRecording,
@@ -1185,39 +1174,38 @@ export function ConsolePageOG() {
    */
   return (
     <div data-component="ConsolePage">
-
       <LandingScreen
-          onStart={async () => {
-            try {
-              logger.debug('DEBUG: START Button clicked - immediate feedback');
-              connectConversation();
-            } catch (err) {
-              // setError(err as Error);
-            }
-          }}
-        />
+        onStart={async () => {
+          try {
+            logger.debug('DEBUG: START Button clicked - immediate feedback');
+            connectConversation();
+          } catch (err) {
+            // setError(err as Error);
+          }
+        }}
+      />
 
-  <VoiceChatScreen
-          isConnected={isConnected}
-          isRecording={isRecording}
-          canPushToTalk={canPushToTalk}
-          showConversation={false} //{showConversation}
-          hasError={false} //{!!error}
-          error={null} //{error}
-          items={items}
-          startRecording={startRecording}
-          stopRecording={stopRecording}
-          setShowConversation={() => false} //{setShowConversation}
-          handleManualReportGeneration={async () => {
-            try {
-              await handleManualReportGeneration();
-            } catch (err) {
-              // setError(err as Error);
-            }
-          }}
-          wavRecorderRef={wavRecorderRef}
-          wavStreamPlayerRef={wavStreamPlayerRef}
-        />
+      <VoiceChatScreen
+        isConnected={isConnected}
+        isRecording={isRecording}
+        canPushToTalk={canPushToTalk}
+        showConversation={false} //{showConversation}
+        hasError={false} //{!!error}
+        error={null} //{error}
+        items={items}
+        startRecording={startRecording}
+        stopRecording={stopRecording}
+        setShowConversation={() => false} //{setShowConversation}
+        handleManualReportGeneration={async () => {
+          try {
+            await handleManualReportGeneration();
+          } catch (err) {
+            // setError(err as Error);
+          }
+        }}
+        wavRecorderRef={wavRecorderRef}
+        wavStreamPlayerRef={wavStreamPlayerRef}
+      />
       <div className="content-top">
         <div className="content-title">
           {/* <img src="/openai-logomark.svg" alt="OpenAI Logo" /> */}
@@ -1444,5 +1432,3 @@ export function ConsolePageOG() {
     </div>
   );
 }
-
-

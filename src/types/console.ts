@@ -2,7 +2,7 @@
 // src/types/console.ts
 
 import type { ItemType } from '@openai/realtime-api-beta/dist/lib/client.js';
-import type { StudyInfo } from '@/lib/ctg-tool';
+import type { StudyInfo } from '@/lib/ctgtool/ctg-tool';
 import type { TrialsReport } from '@/lib/report-handler';
 import type { WavRecorder, WavStreamPlayer } from '@/lib/wavtools';
 

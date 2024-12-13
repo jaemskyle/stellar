@@ -17,7 +17,7 @@ import {
   getClinicalTrials,
   type StudyInfo,
   type PagedStudyResponse,
-} from '@/lib/ctg-tool';
+} from '@/lib/ctgtool/ctg-tool';
 import {
   REPORT_TOOL_DEFINITION,
   reportHandler,
