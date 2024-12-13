@@ -327,17 +327,17 @@ export default function MainPage() {
     await client.connect();
     logger.debug('[DEBUG] await client.connect() - post-try');
 
-    const userMessageContent: InputTextContentType[] = [
-      {
-        type: 'input_text',
-        text: `Hello! I'm the engineer developing this application, and I'm just performing some tests. We don't need to talk about clinical trials or anything. Just perform a sample search, like for the latest clinical trials on ADHD. That's it. In addition, please also memorize the fact that I'm 30 years old, and use that information for search filtering purposes. Thanks!`,
-      },
-    ];
-    client.sendUserMessageContent(userMessageContent);
-    logger.debug('[DEBUG] Sent text message:', userMessageContent);
+    // const userMessageContent: InputTextContentType[] = [
+    //   {
+    //     type: 'input_text',
+    //     text: `Hello! I'm the engineer developing this application, and I'm just performing some tests. We don't need to talk about clinical trials or anything. Just perform a sample search, like for the latest clinical trials on ADHD. That's it. In addition, please also memorize the fact that I'm 30 years old, and use that information for search filtering purposes. Thanks!`,
+    //   },
+    // ];
+    // client.sendUserMessageContent(userMessageContent);
+    // logger.debug('[DEBUG] Sent text message:', userMessageContent);
 
     // console.log('Forcing model response generation');
-    // client.createResponse();
+    client.createResponse();
 
     const wavRecorder = wavRecorderRef.current;
     if (wavRecorder && client.getTurnDetectionType() === 'server_vad') {
