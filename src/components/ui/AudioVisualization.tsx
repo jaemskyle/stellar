@@ -8,86 +8,41 @@ interface AudioVisualizerProps {
 }
 
 /**
- * A component that provides real-time visualization of audio input and output
- * Renders dual circular visualizations:
- * 1. Top: Input visualization (microphone) with dynamic pulse effect
- * 2. Bottom: Output visualization (model speech) with ripple effect
+ * A unified audio visualization component that seamlessly handles both input and output audio
+ * Creates a single, elegant visualization that responds differently to:
+ * - User input (microphone) - Shown in shades of blue with expanding waves
+ * - Model output (speech) - Shown in shades of green with contracting ripples
+ *
+ * The visualization maintains a continuous, fluid motion even when idle,
+ * but becomes more dynamic and energetic when processing audio.
  */
 export function AudioVisualizer({
   isRecording,
   wavRecorderRef,
   wavStreamPlayerRef,
 }: AudioVisualizerProps) {
-  const inputCanvasRef = useRef<HTMLCanvasElement>(null);
-  const outputCanvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number>();
 
   useEffect(() => {
-    const inputCanvas = inputCanvasRef.current;
-    const outputCanvas = outputCanvasRef.current;
-    if (!inputCanvas || !outputCanvas) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-    const inputCtx = inputCanvas.getContext('2d');
-    const outputCtx = outputCanvas.getContext('2d');
-    if (!inputCtx || !outputCtx) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-    // Set canvas dimensions for crisp rendering
+    // Handle high-DPI displays
     const dpr = window.devicePixelRatio || 1;
-    [inputCanvas, outputCanvas].forEach(canvas => {
-      canvas.width = canvas.offsetWidth * dpr;
-      canvas.height = canvas.offsetHeight * dpr;
-      const ctx = canvas.getContext('2d')!;
-      ctx.scale(dpr, dpr);
-    });
+    canvas.width = canvas.offsetWidth * dpr;
+    canvas.height = canvas.offsetHeight * dpr;
+    ctx.scale(dpr, dpr);
 
     let isActive = true;
 
-    const drawInputVisualization = (
+    const drawVisualization = (
       ctx: CanvasRenderingContext2D,
-      audioData?: Float32Array
-    ) => {
-      const width = ctx.canvas.width / dpr;
-      const height = ctx.canvas.height / dpr;
-      const centerX = width / 2;
-      const centerY = height / 2;
-      const baseRadius = Math.min(width, height) * 0.3;
-
-      ctx.clearRect(0, 0, width, height);
-
-      // Draw base circle
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, baseRadius, 0, 2 * Math.PI);
-      ctx.strokeStyle = isRecording ? '#3B82F6' : '#E5E7EB';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      if (isRecording && audioData) {
-        // Calculate audio intensity
-        const intensity =
-          Array.from(audioData).reduce((sum, val) => sum + Math.abs(val), 0) /
-          audioData.length;
-
-        // Draw dynamic waves
-        const numWaves = 3;
-        const maxRadius = baseRadius * 1.5;
-        const time = Date.now() / 1000;
-
-        for (let i = 0; i < numWaves; i++) {
-          const phase = (time * 2 + i * 0.7) % (2 * Math.PI);
-          const waveRadius =
-            baseRadius + Math.sin(phase) * intensity * maxRadius * 0.3;
-
-          ctx.beginPath();
-          ctx.arc(centerX, centerY, waveRadius, 0, 2 * Math.PI);
-          ctx.strokeStyle = `rgba(59, 130, 246, ${0.4 - i * 0.1})`;
-          ctx.stroke();
-        }
-      }
-    };
-
-    const drawOutputVisualization = (
-      ctx: CanvasRenderingContext2D,
-      audioData?: Float32Array
+      inputData?: Float32Array,
+      outputData?: Float32Array
     ) => {
       const width = ctx.canvas.width / dpr;
       const height = ctx.canvas.height / dpr;
@@ -95,52 +50,85 @@ export function AudioVisualizer({
       const centerY = height / 2;
       const baseRadius = Math.min(width, height) * 0.25;
 
-      ctx.clearRect(0, 0, width, height);
+      // Clear canvas with slight fade effect for smooth transitions
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+      ctx.fillRect(0, 0, width, height);
 
-      if (audioData) {
-        // Calculate audio intensity for output
-        const intensity =
-          Array.from(audioData).reduce((sum, val) => sum + Math.abs(val), 0) /
-          audioData.length;
+      const time = Date.now() / 1000;
 
-        // Draw ripple effect
-        const time = Date.now() / 1000;
-        const numRipples = 5;
+      // Calculate audio intensities
+      const inputIntensity = inputData
+        ? Array.from(inputData).reduce((sum, val) => sum + Math.abs(val), 0) /
+          inputData.length
+        : 0;
 
-        for (let i = 0; i < numRipples; i++) {
-          const ripplePhase = (time * 3 + i * 0.5) % (2 * Math.PI);
-          const rippleRadius =
-            baseRadius * (1 + Math.sin(ripplePhase) * 0.3 * intensity);
+      const outputIntensity = outputData
+        ? Array.from(outputData).reduce((sum, val) => sum + Math.abs(val), 0) /
+          outputData.length
+        : 0;
 
-          ctx.beginPath();
-          ctx.arc(centerX, centerY, rippleRadius, 0, 2 * Math.PI);
-          ctx.strokeStyle = `rgba(34, 197, 94, ${0.5 - i * 0.1})`;
-          ctx.lineWidth = 2;
-          ctx.stroke();
+      // Base animation for idle state
+      const idleWave = Math.sin(time * 1.5) * 0.1 + 0.9;
+
+      // Draw multiple layers of circles
+      for (let i = 0; i < 5; i++) {
+        const phase =
+          (time * (1 + i * 0.2) + (i * Math.PI) / 4) % (2 * Math.PI);
+
+        // Calculate radius based on audio intensity and idle animation
+        let radius = baseRadius * (1 + Math.sin(phase) * 0.2);
+
+        if (inputIntensity > 0) {
+          // Expand outward for input audio
+          radius *= 1 + inputIntensity * 0.5;
         }
-      } else {
-        // Idle state
+
+        if (outputIntensity > 0) {
+          // Create ripple effect for output audio
+          radius *= 1 + Math.sin(phase * 2) * outputIntensity * 0.3;
+        }
+
+        // Scale by idle wave when no audio
+        if (inputIntensity === 0 && outputIntensity === 0) {
+          radius *= idleWave;
+        }
+
         ctx.beginPath();
-        ctx.arc(centerX, centerY, baseRadius, 0, 2 * Math.PI);
-        ctx.strokeStyle = '#E5E7EB';
+        ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+
+        // Color based on audio source
+        if (outputIntensity > 0) {
+          // Green for model output
+          ctx.strokeStyle = `rgba(34, 197, 94, ${0.6 - i * 0.1})`;
+        } else if (inputIntensity > 0) {
+          // Blue for user input
+          ctx.strokeStyle = `rgba(59, 130, 246, ${0.6 - i * 0.1})`;
+        } else {
+          // Subtle gray for idle state
+          ctx.strokeStyle = `rgba(156, 163, 175, ${0.3 - i * 0.05})`;
+        }
+
         ctx.lineWidth = 2;
         ctx.stroke();
       }
+
+      // Add central indicator dot
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, 4, 0, 2 * Math.PI);
+      ctx.fillStyle = isRecording ? '#3B82F6' : '#9CA3AF';
+      ctx.fill();
     };
 
     const animate = () => {
       if (!isActive) return;
 
-      // Get audio data from recorder and player
+      // Get both input and output audio data
       const inputData =
         wavRecorderRef.current?.getFrequencies?.('voice')?.values;
       const outputData =
         wavStreamPlayerRef.current?.getFrequencies?.('voice')?.values;
 
-      // Draw visualizations
-      drawInputVisualization(inputCtx, inputData);
-      drawOutputVisualization(outputCtx, outputData);
-
+      drawVisualization(ctx, inputData, outputData);
       animationFrameRef.current = requestAnimationFrame(animate);
     };
 
@@ -155,16 +143,11 @@ export function AudioVisualizer({
   }, [isRecording, wavRecorderRef, wavStreamPlayerRef]);
 
   return (
-    <div className="flex flex-col items-center space-y-6">
+    <div className="flex items-center justify-center">
       <canvas
-        ref={inputCanvasRef}
-        className="w-40 h-40 rounded-full bg-gray-50"
-        style={{ width: '160px', height: '160px' }}
-      />
-      <canvas
-        ref={outputCanvasRef}
-        className="w-40 h-40 rounded-full bg-gray-50"
-        style={{ width: '160px', height: '160px' }}
+        ref={canvasRef}
+        className="w-48 h-48 rounded-full bg-gray-50"
+        style={{ width: '192px', height: '192px' }}
       />
     </div>
   );
