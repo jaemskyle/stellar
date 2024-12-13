@@ -48,7 +48,7 @@ export function AudioVisualizer({
       const height = ctx.canvas.height / dpr;
       const centerX = width / 2;
       const centerY = height / 2;
-      const baseRadius = Math.min(width, height) * 0.25;
+      const baseRadius = Math.min(width, height) * 0.4;
 
       // Clear canvas with slight fade effect for smooth transitions
       ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
@@ -67,13 +67,14 @@ export function AudioVisualizer({
           outputData.length
         : 0;
 
-      // Base animation for idle state
-      const idleWave = Math.sin(time * 1.5) * 0.1 + 0.9;
+      // Base animation for idle state - much slower and subtler
+      const idleWave = Math.sin(time * 0.25) * 0.05 + 0.975;
 
       // Draw multiple layers of circles
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < 200; i++) {
+        // Slower phase movement for more gentle animation
         const phase =
-          (time * (1 + i * 0.2) + (i * Math.PI) / 4) % (2 * Math.PI);
+          (time * (0.2 + i * 0.1) + (i * Math.PI) / 4) % (2 * Math.PI);
 
         // Calculate radius based on audio intensity and idle animation
         let radius = baseRadius * (1 + Math.sin(phase) * 0.2);
@@ -105,7 +106,8 @@ export function AudioVisualizer({
           ctx.strokeStyle = `rgba(59, 130, 246, ${0.6 - i * 0.1})`;
         } else {
           // Subtle gray for idle state
-          ctx.strokeStyle = `rgba(156, 163, 175, ${0.3 - i * 0.05})`;
+          // More subtle gray for idle state with lower opacity
+          ctx.strokeStyle = `rgba(156, 163, 175, ${0.2 - i * 0.03})`;
         }
 
         ctx.lineWidth = 2;
