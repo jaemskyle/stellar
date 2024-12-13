@@ -1,4 +1,4 @@
-// src/lib/visualization/config.ts
+// src/lib/visualization/viz-config.ts
 
 /**
  * Configuration for audio visualization rendering.
@@ -7,9 +7,9 @@
 export const VizConfig = {
   // Core visualization settings
   core: {
-    minRadius: 0.05, // Minimum allowed radius as fraction of canvas
+    minRadius: 0.1, // Increased minimum radius
     maxRadius: 0.8, // Maximum allowed radius as fraction of canvas
-    baseRadius: 0.15, // Base radius for calculations
+    baseRadius: 0.2, // Matching original implementation
     safetyThreshold: 1e-6, // Minimum value before considering zero
   },
 
@@ -17,17 +17,22 @@ export const VizConfig = {
   layers: {
     total: 150,
     groups: [
-      { ratio: 0.2, speed: 0.1, scale: 0.9 }, // Innermost, slowest
+      { ratio: 0.2, speed: 0.1, scale: 0.9 },
       { ratio: 0.2, speed: 0.2, scale: 1.0 },
       { ratio: 0.2, speed: 0.4, scale: 1.25 },
       { ratio: 0.2, speed: 0.6, scale: 1.4 },
-      { ratio: 0.2, speed: 0.7, scale: 1.5 }, // Outermost, fastest
+      { ratio: 0.2, speed: 0.7, scale: 1.5 },
     ],
+    radiusRange: {
+      // Added from original implementation
+      min: 0.8,
+      max: 1.2,
+    },
   },
 
   // Particle system settings
   particles: {
-    count: 200,
+    count: 200, // Matching original count
     size: {
       min: 10,
       max: 15,
@@ -52,7 +57,7 @@ export const VizConfig = {
     scaling: {
       input: {
         radius: 0.8,
-        high: 20,
+        high: 20, // Matching original values
         mid: 15,
         low: 10,
       },
@@ -105,7 +110,7 @@ export const VizUtils = {
     if (Math.abs(value) < VizConfig.core.safetyThreshold) {
       return VizConfig.core.safetyThreshold * Math.sign(value);
     }
-    return value;
+    return isNaN(value) ? VizConfig.core.safetyThreshold : value;
   },
 
   /**
@@ -116,10 +121,9 @@ export const VizUtils = {
    */
   safeRadius(baseRadius: number, scale: number): number {
     const radius = this.safeNumber(baseRadius * scale);
-    return Math.min(
-      Math.max(radius, VizConfig.core.minRadius),
-      VizConfig.core.maxRadius
-    );
+    const minRadius = baseRadius * VizConfig.core.minRadius;
+    const maxRadius = baseRadius * VizConfig.core.maxRadius;
+    return Math.min(Math.max(radius, minRadius), maxRadius);
   },
 
   /**
