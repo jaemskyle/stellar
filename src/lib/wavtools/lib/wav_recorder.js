@@ -67,7 +67,7 @@ export class WavRecorder {
     if (audioData instanceof Blob) {
       if (fromSampleRate !== -1) {
         throw new Error(
-          `Can not specify "fromSampleRate" when reading from Blob`,
+          `Can not specify "fromSampleRate" when reading from Blob`
         );
       }
       blob = audioData;
@@ -75,7 +75,7 @@ export class WavRecorder {
     } else if (audioData instanceof ArrayBuffer) {
       if (fromSampleRate !== -1) {
         throw new Error(
-          `Can not specify "fromSampleRate" when reading from ArrayBuffer`,
+          `Can not specify "fromSampleRate" when reading from ArrayBuffer`
         );
       }
       arrayBuffer = audioData;
@@ -95,12 +95,12 @@ export class WavRecorder {
         float32Array = new Float32Array(audioData);
       } else {
         throw new Error(
-          `"audioData" must be one of: Blob, Float32Arrray, Int16Array, ArrayBuffer, Array<number>`,
+          `"audioData" must be one of: Blob, Float32Arrray, Int16Array, ArrayBuffer, Array<number>`
         );
       }
       if (fromSampleRate === -1) {
         throw new Error(
-          `Must specify "fromSampleRate" when reading from Float32Array, In16Array or Array`,
+          `Must specify "fromSampleRate" when reading from Float32Array, In16Array or Array`
         );
       } else if (fromSampleRate < 3000) {
         throw new Error(`Minimum "fromSampleRate" is 3000 (3kHz)`);
@@ -187,7 +187,7 @@ export class WavRecorder {
       if (new Date().valueOf() - t0 > this.eventTimeout) {
         throw new Error(`Timeout waiting for "${name}" event`);
       }
-      await new Promise((res) => setTimeout(() => res(true), 1));
+      await new Promise(res => setTimeout(() => res(true), 1));
     }
     const payload = this.eventReceipts[message.id];
     delete this.eventReceipts[message.id];
@@ -203,7 +203,7 @@ export class WavRecorder {
     if (callback === null && this._deviceChangeCallback) {
       navigator.mediaDevices.removeEventListener(
         'devicechange',
-        this._deviceChangeCallback,
+        this._deviceChangeCallback
       );
       this._deviceChangeCallback = null;
     } else if (callback !== null) {
@@ -212,9 +212,9 @@ export class WavRecorder {
       // if a few are operating at the same time
       let lastId = 0;
       let lastDevices = [];
-      const serializeDevices = (devices) =>
+      const serializeDevices = devices =>
         devices
-          .map((d) => d.deviceId)
+          .map(d => d.deviceId)
           .sort()
           .join(',');
       const cb = async () => {
@@ -250,7 +250,7 @@ export class WavRecorder {
           audio: true,
         });
         const tracks = stream.getTracks();
-        tracks.forEach((track) => track.stop());
+        tracks.forEach(track => track.stop());
       } catch (e) {
         window.alert('You must grant microphone access to use this feature.');
       }
@@ -271,17 +271,15 @@ export class WavRecorder {
     }
     await this.requestPermission();
     const devices = await navigator.mediaDevices.enumerateDevices();
-    const audioDevices = devices.filter(
-      (device) => device.kind === 'audioinput',
-    );
+    const audioDevices = devices.filter(device => device.kind === 'audioinput');
     const defaultDeviceIndex = audioDevices.findIndex(
-      (device) => device.deviceId === 'default',
+      device => device.deviceId === 'default'
     );
     const deviceList = [];
     if (defaultDeviceIndex !== -1) {
       let defaultDevice = audioDevices.splice(defaultDeviceIndex, 1)[0];
       let existingIndex = audioDevices.findIndex(
-        (device) => device.groupId === defaultDevice.groupId,
+        device => device.groupId === defaultDevice.groupId
       );
       if (existingIndex !== -1) {
         defaultDevice = audioDevices.splice(existingIndex, 1)[0];
@@ -301,7 +299,7 @@ export class WavRecorder {
   async begin(deviceId) {
     if (this.processor) {
       throw new Error(
-        `Already connected: please call .end() to start a new session`,
+        `Already connected: please call .end() to start a new session`
       );
     }
 
@@ -331,7 +329,7 @@ export class WavRecorder {
       throw new Error(`Could not add audioWorklet module: ${this.scriptSrc}`);
     }
     const processor = new AudioWorkletNode(context, 'audio_processor');
-    processor.port.onmessage = (e) => {
+    processor.port.onmessage = e => {
       const { event, id, data } = e.data;
       if (event === 'receipt') {
         this.eventReceipts[id] = data;
@@ -364,11 +362,10 @@ export class WavRecorder {
     analyser.smoothingTimeConstant = 0.1;
     node.connect(analyser);
     if (this.outputToSpeakers) {
-      // eslint-disable-next-line no-console
       console.warn(
         'Warning: Output to speakers may affect sound quality,\n' +
           'especially due to system audio feedback preventative measures.\n' +
-          'use only for debugging',
+          'use only for debugging'
       );
       analyser.connect(context.destination);
     }
@@ -390,7 +387,7 @@ export class WavRecorder {
   getFrequencies(
     analysisType = 'frequency',
     minDecibels = -100,
-    maxDecibels = -30,
+    maxDecibels = -30
   ) {
     if (!this.processor) {
       throw new Error('Session ended: please call .begin() first');
@@ -401,7 +398,7 @@ export class WavRecorder {
       null,
       analysisType,
       minDecibels,
-      maxDecibels,
+      maxDecibels
     );
   }
 
@@ -487,7 +484,7 @@ export class WavRecorder {
     }
     if (!force && this.recording) {
       throw new Error(
-        'Currently recording: please call .pause() first, or call .save(true) to force',
+        'Currently recording: please call .pause() first, or call .save(true) to force'
       );
     }
     this.log('Exporting ...');
@@ -512,7 +509,7 @@ export class WavRecorder {
     await this._event('stop');
     this.recording = false;
     const tracks = this.stream.getTracks();
-    tracks.forEach((track) => track.stop());
+    tracks.forEach(track => track.stop());
 
     this.log('Exporting ...');
     const exportData = await this._event('export', {}, _processor);

@@ -1,41 +1,45 @@
 /* eslint-disable no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// src/components/MainPage.tsx
+/** src/components/MainPage.tsx
+ * Main Page Component
+ */
 import { logger } from '@/utils/logger';
-import { Button } from '@/components/ui/button';
-// import { ScrollArea } from '@/components/ui/scroll-area';
-// import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RealtimeClient } from '@openai/realtime-api-beta';
 import type {
   InputTextContentType,
   ItemType,
 } from '@openai/realtime-api-beta/dist/lib/client.js';
-import { Eye, EyeOff, Mic, PhoneOff, Settings } from 'lucide-react';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-// import { motion, AnimatePresence } from 'framer-motion';
+import { useCallback, useEffect, useRef, useState } from 'react';
 // Import all the required utilities and tools
 import { useAudioManager } from '@/hooks/useAudioManager';
-import { WavRecorder, WavStreamPlayer } from '@/lib/wavtools/index.js';
-import { instructions } from '@/utils/model_instructions.js';
 import {
   CTG_TOOL_DEFINITION,
   getClinicalTrials,
   type StudyInfo,
-} from '../lib/ctg-tool';
+  type PagedStudyResponse,
+} from '@/lib/ctg-tool';
 import {
   REPORT_TOOL_DEFINITION,
   reportHandler,
   type TrialsReport,
-} from '../lib/report-handler';
+} from '@/lib/report-handler';
+import { WavRecorder, WavStreamPlayer } from '@/lib/wavtools/index.js';
+import { instructions } from '@/utils/model_instructions.js';
 
 // Import screens
 import { LandingScreen } from '@/components/screens/LandingScreen';
-import { VoiceChatScreen } from '@/components/screens/VoiceChatScreen';
 import ResultsScreen from '@/components/screens/ResultsScreen';
-import { LoadingState } from '@/components/ui/LoadingState';
+import { VoiceChatScreen } from '@/components/screens/VoiceChatScreen';
 import { ErrorDisplay } from '@/components/ui/ErrorDisplay';
+import { LoadingState } from '@/components/ui/LoadingState';
 import { useSettings } from '@/hooks/useSettings';
-import { SettingsMenu } from '@/components/settings/SettingsMenu';
+
+// import { SettingsMenu } from '@/components/settings/SettingsMenu';
+// import { Button } from '@/components/ui/button';
+// import { ScrollArea } from '@/components/ui/scroll-area';
+// import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+// import { Eye, EyeOff, Mic, PhoneOff, Settings } from 'lucide-react';
+// import { motion, AnimatePresence } from 'framer-motion';
 
 // Constants
 const LOCAL_RELAY_SERVER_URL: string =
@@ -89,7 +93,7 @@ export default function MainPage() {
   const [error, setError] = useState<Error | null>(null);
 
   // Trials and Report State
-  const [, setTrials] = useState<StudyInfo[]>([]);
+  const [trials, setTrials] = useState<PagedStudyResponse>({ studies: [] });
   const [isLoadingTrials, setIsLoadingTrials] = useState(false);
   const [finalReport, setFinalReport] = useState<TrialsReport | null>(null);
   // const [isReportModalOpen, setIsReportModalOpen] = useState(false);
@@ -192,31 +196,31 @@ export default function MainPage() {
           @ ${JSON.stringify(params)}
         `);
         setIsLoadingTrials(true);
-        setTrials([]);
+        setTrials({ studies: [] });
 
         logger.debug('[DEBUG] Fetching clinical trials with params:', params);
-        const trials = await getClinicalTrials(params);
+        const response = await getClinicalTrials(params);
 
-        // Update latest trials in report handler
-        reportHandler.updateLatestTrials(trials, params);
+        // Update latest trials in report handler - pass just the studies array
+        reportHandler.updateLatestTrials(response.studies, params);
 
-        setTrials(trials);
+        setTrials(response);
         setIsLoadingTrials(false);
 
         logger.info(`
           @
           @ [TOOL CALL] 'get_trials' function call complete.
-          @ Found ${trials.length} trials matching criteria
+          @ Found ${response.studies.length} trials matching criteria
           @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
         `);
         return {
           status: 'success',
-          resultCount: trials.length,
-          trials,
-          message: `Successfully retrieved ${trials.length} clinical trials matching your criteria.`,
+          resultCount: response.studies.length,
+          trials: response.studies, // Send just the studies array
+          message: `Successfully retrieved ${response.studies.length} clinical trials matching your criteria.`,
           summary:
-            trials.length > 0
-              ? `Found ${trials.length} trials. The first trial is "${trials[0].studyTitle}" (${trials[0].nctNumber}).`
+            response.studies.length > 0
+              ? `Found ${response.studies.length} trials. The first trial is "${response.studies[0].studyTitle}" (${response.studies[0].nctNumber}).`
               : 'No matching trials found with the current criteria.',
         };
       } catch (error) {
@@ -356,7 +360,7 @@ export default function MainPage() {
     setRealtimeEvents([]);
     setItems([]);
     setMemoryKv({});
-    setTrials([]);
+    setTrials({ studies: [] });
     setIsLoadingTrials(false);
     // setFinalReport(null);
     // reportHandler.clear();
@@ -385,7 +389,7 @@ export default function MainPage() {
    * Handles manual report generation and conversation end
    */
   const handleManualReportGeneration = useCallback(async () => {
-    if (!reportHandler.getLatestTrials().length) {
+    if (!trials.studies.length) {
       logger.warn('No trials available for report generation');
       // First disconnect conversation
       await disconnectConversation();
@@ -422,7 +426,7 @@ export default function MainPage() {
       logger.error('Error during report generation:', error);
       // Optionally show error to user
     }
-  }, []);
+  }, [trials.studies.length]);
 
   /**
    * Delete a conversation item by its ID.
