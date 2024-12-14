@@ -34,6 +34,7 @@ export interface TrialsReport {
     searchParameters: Record<string, any>;
     generatedBy: 'assistant' | 'user';
     conversationComplete: boolean;
+    finalNotes?: string;
   };
 }
 
@@ -69,9 +70,10 @@ export class ReportHandler {
   private currentReport: TrialsReport | null = null;
   private latestTrials: StudyInfo[] = [];
   private latestSearchParams: Record<string, any> = {};
+  private uniqueTrialsSet: Set<string> = new Set(); // Track unique NCT numbers
 
   /**
-   * Updates the latest trials from a new CTG search
+   * Updates the latest trials from a new CTG search and tracks unique trials
    * @param trials - New trials from latest search
    * @param searchParams - Parameters used in the search
    */
@@ -81,10 +83,30 @@ export class ReportHandler {
   ): void {
     this.latestTrials = trials;
     this.latestSearchParams = searchParams;
+
+    // Track unique trials by NCT number
+    trials.forEach(trial => {
+      if (!this.uniqueTrialsSet.has(trial.nctNumber)) {
+        this.uniqueTrialsSet.add(trial.nctNumber);
+        console.debug('New unique trial found:', {
+          nctNumber: trial.nctNumber,
+          totalUnique: this.uniqueTrialsSet.size,
+        });
+      }
+    });
+
     console.log('Latest trials updated:', {
-      count: trials.length,
+      newTrialsCount: trials.length,
+      totalUniqueTrials: this.uniqueTrialsSet.size,
       searchParams,
     });
+  }
+
+  /**
+   * Gets the total count of unique trials encountered in the conversation
+   */
+  getTotalUniqueTrialsCount(): number {
+    return this.uniqueTrialsSet.size;
   }
 
   /**
@@ -124,7 +146,7 @@ export class ReportHandler {
       },
       trials: this.filterAndSortTrials(this.latestTrials),
       metadata: {
-        totalTrialsFound: this.latestTrials.length,
+        totalTrialsFound: this.uniqueTrialsSet.size, // Use total unique trials count
         searchTimestamp: new Date().toISOString(),
         searchParameters: this.latestSearchParams,
         generatedBy,
@@ -137,6 +159,7 @@ export class ReportHandler {
     console.log('Report generated:', {
       timestamp: report.timestamp,
       trialsCount: report.trials.length,
+      totalUniqueTrials: this.uniqueTrialsSet.size,
       generatedBy,
       conversationComplete,
       report,
@@ -181,12 +204,14 @@ export class ReportHandler {
   }
 
   /**
-   * Clears the current report and latest trials
+   * Clears the current report, latest trials, and unique trials tracking
    */
   clear(): void {
     this.currentReport = null;
     this.latestTrials = [];
     this.latestSearchParams = {};
+    this.uniqueTrialsSet.clear();
+    console.debug('Report handler cleared, including unique trials tracking');
   }
 }
 
