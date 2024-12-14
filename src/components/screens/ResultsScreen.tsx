@@ -412,8 +412,8 @@ const ResultsScreen: React.FC<ResultsScreenProps> = ({
           Consult with your healthcare professional
         </h1>
         <p className="text-xl text-gray-600 mb-6">
-          We found <em>X</em> trials. Here are the top {trials.length} closest
-          matches.
+          We found <em>{finalReport.metadata.totalTrialsFound}</em> trials. Here
+          are the top {trials.length} closest matches.
           {/* trials matching your criteria */}
         </p>
 
