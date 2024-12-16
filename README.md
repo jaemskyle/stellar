@@ -3,6 +3,7 @@ This is an Astro project that integrates with OpenAI Realtime API that is heavil
 
 
 # Setup Node using NVM
+
 - curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash
 - update .nvmrc accordingly in the future for your usage
 
