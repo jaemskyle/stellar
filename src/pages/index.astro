@@ -29,26 +29,89 @@ const title = debugMode
 </SiteLayout>
  -->
 <Layout title="James - Your Healthcare Assistant">
-  <div class="_min-h-screen flex flex-col">
+  <div
+    class="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white"
+  >
     <!-- Added wrapper div -->
     <main class="flex-1 flex flex-col">
       <!-- Changed to flex-1 -->
       <!-- <nav class="text-black"> -->
       <nav class="flex-1 flex flex-col text-black">
         <SignedOut>
-          <SignInButton mode="modal" />
+          <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
+            <h1
+              class="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl md:text-6xl"
+            >
+              <span class="block">James</span>
+              <span class="block text-blue-600"
+                >Your Intelligent Healthcare Assistant</span
+              >
+            </h1>
+            <p
+              class="mt-3 max-w-md mx-auto text-base text-gray-500 sm:text-lg md:mt-5 md:text-xl md:max-w-3xl"
+            >
+              Empowering healthcare professionals with AI-driven insights for
+              clinical trials and patient care.
+            </p>
+            <div class="mt-10 flex justify-center gap-4">
+              <SignInButton
+                mode="modal"
+                class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-150"
+              />
+              <a
+                href="#features"
+                class="inline-flex items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors duration-150"
+              >
+                Learn more
+              </a>
+            </div>
+          </div>
         </SignedOut>
         <SignedIn>
           <div class="flex justify-end absolute top-0 left-0 right-0 p-8 z-10">
             <UserButton />
           </div>
-          <!-- <TestButton client:load>Test shadcn/ui Button</TestButton> -->
           <MainPage client:load />
         </SignedIn>
         <!-- link to /subscribe -->
         <!-- <a href="/subscribe" class="fixed bottom-4 right-4">Subscribe</a> -->
         <!-- Fixed positioning for subscribe link -->
       </nav>
+
+      <SignedOut>
+        <section id="features" class="py-16 bg-white">
+          <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
+              <div class="p-6 border border-gray-200 rounded-lg">
+                <h3 class="text-lg font-semibold text-gray-900">
+                  Clinical Trial Insights
+                </h3>
+                <p class="mt-2 text-gray-600">
+                  Access and analyze clinical trial data with advanced AI
+                  assistance.
+                </p>
+              </div>
+              <div class="p-6 border border-gray-200 rounded-lg">
+                <h3 class="text-lg font-semibold text-gray-900">
+                  Intelligent Analysis
+                </h3>
+                <p class="mt-2 text-gray-600">
+                  Get AI-powered insights and recommendations for better
+                  decision making.
+                </p>
+              </div>
+              <div class="p-6 border border-gray-200 rounded-lg">
+                <h3 class="text-lg font-semibold text-gray-900">
+                  Secure & Compliant
+                </h3>
+                <p class="mt-2 text-gray-600">
+                  Enterprise-grade security with full HIPAA compliance.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </SignedOut>
 
       <!-- <main>
       <nav class="text-black">
@@ -142,78 +205,86 @@ const title = debugMode
       <!----------------------------------------------------------------->
     </main>
 
-    <style>
-      main {
-        margin: auto;
-        padding: 1rem;
-        width: 800px;
-        max-width: calc(100% - 2rem);
-        color: white;
-        font-size: 20px;
-        line-height: 1.6;
-      }
-      .astro-a {
-        position: absolute;
-        top: -32px;
-        left: 50%;
-        transform: translatex(-50%);
-        width: 220px;
-        height: auto;
-        z-index: -1;
-      }
-      h1 {
-        font-size: 4rem;
-        font-weight: 700;
-        line-height: 1;
-        text-align: center;
-        margin-bottom: 1em;
-      }
-      .text-gradient {
-        background-image: var(--accent-gradient);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-size: 400%;
-        background-position: 0%;
-      }
-      .instructions {
-        margin-bottom: 2rem;
-        border: 1px solid rgba(var(--accent-light), 25%);
-        background: linear-gradient(
-          rgba(var(--accent-dark), 66%),
-          rgba(var(--accent-dark), 33%)
-        );
-        padding: 1.5rem;
-        border-radius: 8px;
-      }
-      .instructions code {
-        font-size: 0.8em;
-        font-weight: bold;
-        background: rgba(var(--accent-light), 12%);
-        color: rgb(var(--accent-light));
-        border-radius: 4px;
-        padding: 0.3em 0.4em;
-      }
-      .instructions strong {
-        color: rgb(var(--accent-light));
-      }
-      .link-card-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(24ch, 1fr));
-        gap: 2rem;
-        padding: 0;
-      }
-
-      /* ------------------------------------------------------------ */
-
-      /* :global(body) {
-        margin: 0;
-        padding: 0;
-        min-height: 100vh;
-      }
-
-      :global(#app) {
-        min-height: 100vh;
-      } */
-    </style>
+    <footer class="bg-white border-t border-gray-200">
+      <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+        <p class="text-center text-gray-500 text-sm">
+          {new Date().getFullYear()} James Healthcare Assistant. All rights reserved.
+        </p>
+      </div>
+    </footer>
   </div>
 </Layout>
+
+<style>
+  /* Preserve any existing styles */
+  .astro-a {
+    position: absolute;
+    top: -32px;
+    left: 50%;
+    transform: translatex(-50%);
+    width: 220px;
+    height: auto;
+  }
+  main {
+    margin: auto;
+    padding: 1rem;
+    width: 800px;
+    max-width: calc(100% - 2rem);
+    color: white;
+    font-size: 20px;
+    line-height: 1.6;
+  }
+  h1 {
+    font-size: 4rem;
+    font-weight: 700;
+    line-height: 1;
+    text-align: center;
+    margin-bottom: 1em;
+  }
+  .text-gradient {
+    background-image: var(--accent-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-size: 400%;
+    background-position: 0%;
+  }
+  .instructions {
+    margin-bottom: 2rem;
+    border: 1px solid rgba(var(--accent-light), 25%);
+    background: linear-gradient(
+      rgba(var(--accent-dark), 66%),
+      rgba(var(--accent-dark), 33%)
+    );
+    padding: 1.5rem;
+    border-radius: 8px;
+  }
+  .instructions code {
+    font-size: 0.8em;
+    font-weight: bold;
+    background: rgba(var(--accent-light), 12%);
+    color: rgb(var(--accent-light));
+    border-radius: 4px;
+    padding: 0.3em 0.4em;
+  }
+  .instructions strong {
+    color: rgb(var(--accent-light));
+  }
+  .link-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(24ch, 1fr));
+    gap: 2rem;
+    padding: 0;
+  }
+
+  /* ------------------------------------------------------------ */
+
+  /* :global(body) {
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+  }
+
+  :global(#app) {
+    min-height: 100vh;
+  } */
+</style>
